@@ -460,6 +460,7 @@ export default function App(){
   const[notification,setNotification]=useState(null);
   const[globalErr,setGlobalErr]=useState(null);
   const[showLogoutConfirm,setShowLogoutConfirm]=useState(false);
+  const[calendarFilter,setCalendarFilter]=useState([]);
   const groupMenuRef=useRef(null);
 
   useEffect(()=>{
@@ -790,16 +791,41 @@ export default function App(){
         {/* CALENDAR VIEW */}
         {view==="calendar"&&(
           <div>
-            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
               <button className="plannr-btn-small" onClick={()=>setCalMonth(({y,m})=>m===0?{y:y-1,m:11}:{y,m:m-1})} style={{fontSize:16,padding:"5px 12px"}}>‹</button>
               <span style={{fontWeight:700,fontSize:14,flex:1,textAlign:"center",color:"var(--text)"}}>
                 {new Date(calMonth.y,calMonth.m).toLocaleDateString("en-US",{month:"long",year:"numeric"})}
               </span>
               <button className="plannr-btn-small" onClick={()=>setCalMonth(({y,m})=>m===11?{y:y+1,m:0}:{y,m:m+1})} style={{fontSize:16,padding:"5px 12px"}}>›</button>
             </div>
+
+            {/* Member filter chips */}
+            <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:14,alignItems:"center"}}>
+              <span style={{fontSize:11,fontWeight:600,color:"var(--text3)",textTransform:"uppercase",letterSpacing:"0.06em",marginRight:2}}>Filter:</span>
+              {groupMembers.map(m=>{
+                const active=calendarFilter.includes(m.id);
+                const col=getMemberColor(groupMembers,m.id);
+                return(
+                  <button key={m.id} onClick={()=>setCalendarFilter(f=>active?f.filter(id=>id!==m.id):[...f,m.id])}
+                    style={{padding:"5px 12px",borderRadius:20,border:`2px solid ${col}`,
+                      background:active?col:"transparent",color:active?"#fff":col,
+                      fontWeight:600,cursor:"pointer",fontSize:12,
+                      fontFamily:"'DM Sans',inherit",transition:"all 0.15s",
+                    }}>{m.name}</button>
+                );
+              })}
+              {calendarFilter.length>0&&(
+                <button onClick={()=>setCalendarFilter([])}
+                  style={{padding:"5px 10px",borderRadius:20,border:"1.5px solid var(--border)",
+                    background:"transparent",color:"var(--text3)",cursor:"pointer",fontSize:11,
+                    fontFamily:"'DM Sans',inherit",
+                  }}>✕ Clear</button>
+              )}
+            </div>
+
             <CalendarGrid
               calMonth={calMonth}
-              events={events}
+              events={calendarFilter.length>0?events.filter(e=>e.attendees.some(a=>calendarFilter.includes(a))):events}
               showCompleted={showCompleted}
               today={todayStr()}
               selectedDay={selectedDay}
@@ -816,9 +842,9 @@ export default function App(){
                   <h3 style={{margin:0,fontSize:14,fontWeight:700,color:"var(--text)"}}>{fmtDate(selectedDay)}</h3>
                   <button onClick={()=>openAddEvent(selectedDay)} className="add-btn" style={{fontSize:12,padding:"6px 12px"}}>+ Add</button>
                 </div>
-                {selectedDayEvents.length===0
+                {(calendarFilter.length>0?selectedDayEvents.filter(e=>e.attendees.some(a=>calendarFilter.includes(a))):selectedDayEvents).length===0
                   ?<div className="plannr-empty" style={{padding:"20px 0"}}>No events this day.</div>
-                  :selectedDayEvents.map(ev=><EventCard key={ev.id} ev={ev} members={groupMembers} onToggle={toggleComplete} onEdit={openEditEvent} onDelete={deleteEvent}/>)}
+                  :(calendarFilter.length>0?selectedDayEvents.filter(e=>e.attendees.some(a=>calendarFilter.includes(a))):selectedDayEvents).map(ev=><EventCard key={ev.id} ev={ev} members={groupMembers} onToggle={toggleComplete} onEdit={openEditEvent} onDelete={deleteEvent}/>)}
               </div>
             )}
 
@@ -827,11 +853,11 @@ export default function App(){
                 <span style={{fontWeight:700,fontSize:14,color:"var(--text)"}}>
                   {new Date(calMonth.y,calMonth.m).toLocaleDateString("en-US",{month:"long"})}
                 </span>
-                <span style={{fontSize:12,color:"var(--text3)",fontFamily:"'DM Mono',monospace"}}>{monthEvents.length} events</span>
+                <span style={{fontSize:12,color:"var(--text3)",fontFamily:"'DM Mono',monospace"}}>{(calendarFilter.length>0?monthEvents.filter(e=>e.attendees.some(a=>calendarFilter.includes(a))):monthEvents).length} events</span>
               </div>
-              {monthEvents.length===0
+              {(calendarFilter.length>0?monthEvents.filter(e=>e.attendees.some(a=>calendarFilter.includes(a))):monthEvents).length===0
                 ?<div className="plannr-empty">No events this month.</div>
-                :monthEvents.map(ev=><EventCard key={ev.id} ev={ev} members={groupMembers} onToggle={toggleComplete} onEdit={openEditEvent} onDelete={deleteEvent}/>)}
+                :(calendarFilter.length>0?monthEvents.filter(e=>e.attendees.some(a=>calendarFilter.includes(a))):monthEvents).map(ev=><EventCard key={ev.id} ev={ev} members={groupMembers} onToggle={toggleComplete} onEdit={openEditEvent} onDelete={deleteEvent}/>)}
             </div>
           </div>
         )}
