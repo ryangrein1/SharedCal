@@ -616,7 +616,7 @@ export default function App(){
       <div style={{width:"100%",maxWidth:380}}>
         {/* Brand */}
         <div style={{textAlign:"center",marginBottom:32}}>
-          <div style={{width:52,height:52,borderRadius:14,background:"var(--accent)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,margin:"0 auto 14px",boxShadow:"0 4px 16px rgba(99,102,241,0.35)"}}>📅</div>
+          <img src="/apple-touch-icon.png" style={{width:80,height:80,borderRadius:18,margin:"0 auto 14px",display:"block",boxShadow:"0 4px 20px rgba(99,102,241,0.35)"}}/>
           <h1 style={{fontSize:26,fontWeight:800,color:"var(--text)",letterSpacing:"-0.03em",marginBottom:4}}>Plannr</h1>
           <p style={{color:"var(--text3)",fontSize:14}}>Your shared calendar, together.</p>
         </div>
