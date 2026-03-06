@@ -3,12 +3,9 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 const SUPABASE_URL = "https://isrtzkuatmidbabtzpwv.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlzcnR6a3VhdG1pZGJhYnR6cHd2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI4MDk5MDMsImV4cCI6MjA4ODM4NTkwM30.FqB8nUgE5tumu5OcTKyhfcSYCUB0w1jPUzP9MVRECqo";
 
-const sb = async (path, opts={}) => {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
-    ...opts,
-    headers:{"apikey":SUPABASE_ANON_KEY,"Authorization":`Bearer ${SUPABASE_ANON_KEY}`,"Content-Type":"application/json","Prefer":"return=representation",...(opts.headers||{})}
-  });
-  if (!res.ok){const e=await res.text();throw new Error(e);}
+const sb=async(path,opts={})=>{
+  const res=await fetch(`${SUPABASE_URL}/rest/v1/${path}`,{...opts,headers:{"apikey":SUPABASE_ANON_KEY,"Authorization":`Bearer ${SUPABASE_ANON_KEY}`,"Content-Type":"application/json","Prefer":"return=representation",...(opts.headers||{})}});
+  if(!res.ok){const e=await res.text();throw new Error(e);}
   return res.status===204?null:res.json();
 };
 const dbGet=(t,q="")=>sb(`${t}?${q}`);
@@ -23,7 +20,7 @@ const subscribeToTable=(table,groupId,onChange)=>{
     ws.send(JSON.stringify({topic:`realtime:public:${table}:group_id=eq.${groupId}`,event:"phx_join",payload:{config:{postgres_changes:[{event:"*",schema:"public",table,filter:`group_id=eq.${groupId}`}]}},ref:"2"}));
   };
   ws.onmessage=e=>{try{const m=JSON.parse(e.data);if(m.event==="postgres_changes"||(m.payload?.data?.type))onChange();}catch{}};
-  return ()=>ws.close();
+  return()=>ws.close();
 };
 
 const genId=()=>Math.random().toString(36).slice(2,10);
@@ -42,10 +39,7 @@ const getDateRange=(start,end)=>{
   return dates;
 };
 const isMultiDay=ev=>ev.end_date&&ev.end_date!==ev.date;
-const evSpansDays=(ev,dateStr)=>{
-  if(!isMultiDay(ev))return ev.date===dateStr;
-  return dateStr>=ev.date&&dateStr<=ev.end_date;
-};
+const evSpansDays=(ev,dateStr)=>isMultiDay(ev)?dateStr>=ev.date&&dateStr<=ev.end_date:ev.date===dateStr;
 
 const SESSION_KEY="sharedcal_user";
 const saveSession=u=>{try{localStorage.setItem(SESSION_KEY,JSON.stringify(u));}catch{}};
@@ -57,8 +51,8 @@ const injectStyles=()=>{
   const el=document.createElement("style");
   el.id="plannr-styles";
   el.textContent=`
-    :root{--bg:#f1f5f9;--surface:#ffffff;--surface2:#f8fafc;--border:#e2e8f0;--border2:#f1f5f9;--text:#1e293b;--text2:#475569;--text3:#94a3b8;--input-bg:#ffffff;--nav-bg:#ffffff;--chip-bg:#f1f5f9;--code-bg:#f1f5f9;--code-text:#1e293b;--modal-bg:#ffffff;--pad-bg:#fafafa;--today-bg:#fafafe;--sel-bg:#eef2ff;--danger:#dc2626;--accent:#4f46e5;}
-    @media(prefers-color-scheme:dark){:root{--bg:#0f172a;--surface:#1e293b;--surface2:#263347;--border:#334155;--border2:#1e293b;--text:#f1f5f9;--text2:#94a3b8;--text3:#64748b;--input-bg:#1e293b;--nav-bg:#1e293b;--chip-bg:#334155;--code-bg:#0f172a;--code-text:#f1f5f9;--modal-bg:#1e293b;--pad-bg:#151f2e;--today-bg:#1e2d45;--sel-bg:#2d2f6b;--danger:#f87171;--accent:#6366f1;}}
+    :root{--bg:#f1f5f9;--surface:#ffffff;--surface2:#f8fafc;--border:#e2e8f0;--border2:#e2e8f0;--text:#1e293b;--text2:#475569;--text3:#94a3b8;--input-bg:#ffffff;--nav-bg:#ffffff;--chip-bg:#f1f5f9;--code-bg:#f1f5f9;--code-text:#1e293b;--modal-bg:#ffffff;--pad-bg:#f8fafc;--today-bg:#fafafe;--sel-bg:#eef2ff;--danger:#dc2626;--accent:#4f46e5;}
+    @media(prefers-color-scheme:dark){:root{--bg:#0f172a;--surface:#1e293b;--surface2:#263347;--border:#334155;--border2:#334155;--text:#f1f5f9;--text2:#94a3b8;--text3:#64748b;--input-bg:#1e293b;--nav-bg:#1e293b;--chip-bg:#334155;--code-bg:#0f172a;--code-text:#f1f5f9;--modal-bg:#1e293b;--pad-bg:#151f2e;--today-bg:#1e2d45;--sel-bg:#2d2f6b;--danger:#f87171;--accent:#6366f1;}}
     *{box-sizing:border-box;}
     body{background:var(--bg);color:var(--text);margin:0;font-family:system-ui,sans-serif;}
     input:not([type="checkbox"]):not([type="radio"]),textarea{background:var(--input-bg)!important;color:var(--text)!important;border:1.5px solid var(--border)!important;border-radius:10px;font-size:16px;font-family:inherit;outline:none;width:100%;padding:12px 14px;display:block;margin-bottom:12px;-webkit-appearance:none;appearance:none;}
@@ -70,8 +64,17 @@ const injectStyles=()=>{
     .plannr-event-card{background:var(--surface);border-radius:12px;padding:14px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,0.08);}
     .plannr-nav{background:var(--nav-bg);border-bottom:1px solid var(--border);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:8px;position:sticky;top:0;z-index:50;}
     .plannr-cal-grid{background:var(--surface);border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08);}
-    .plannr-cal-header-cell{padding:8px 0;text-align:center;font-size:12px;font-weight:600;color:var(--text3);border-bottom:1px solid var(--border2);}
-    .plannr-cal-cell{height:80px;padding:3px 0;border-right:1px solid var(--border2);border-bottom:1px solid var(--border2);cursor:pointer;position:relative;overflow:hidden;}
+    .plannr-cal-header-cell{padding:8px 0;text-align:center;font-size:12px;font-weight:600;color:var(--text3);border-bottom:1px solid var(--border2);background:var(--surface);}
+    /* FIXED height cell — never grows */
+    .plannr-cal-cell{
+      height:80px;
+      border-right:1px solid var(--border2);
+      border-bottom:1px solid var(--border2);
+      cursor:pointer;
+      overflow:hidden;
+      position:relative;
+      padding:2px;
+    }
     .plannr-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:flex-end;justify-content:center;z-index:200;}
     .plannr-modal{background:var(--modal-bg);border-radius:20px 20px 0 0;padding:24px 20px 36px;width:100%;max-width:500px;box-shadow:0 -4px 32px rgba(0,0,0,0.2);max-height:90vh;overflow-y:auto;}
     .plannr-group-menu{position:absolute;right:0;top:44px;background:var(--surface);border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,0.2);padding:20px;width:280px;z-index:100;border:1px solid var(--border);}
@@ -89,11 +92,6 @@ const injectStyles=()=>{
     .plannr-checkbox svg{display:none;}
     .plannr-checkbox.checked svg{display:block;}
     .multiday-badge{display:inline-block;font-size:10px;background:var(--accent);color:#fff;border-radius:4px;padding:1px 5px;margin-left:6px;vertical-align:middle;font-weight:600;}
-    /* Single-day chip */
-    .cal-chip-single{font-size:9px;color:#fff;padding:2px 4px;margin:0 2px 1px;border-radius:3px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;display:block;}
-    /* Multi-day spanning row — rendered absolutely over the grid */
-    .cal-span-row{position:absolute;height:16px;border-radius:4px;display:flex;align-items:center;padding:0 5px;overflow:hidden;white-space:nowrap;color:#fff;font-size:9px;font-weight:600;pointer-events:auto;z-index:10;cursor:pointer;}
-    .cal-span-row span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;pointer-events:none;}
   `;
   document.head.appendChild(el);
 };
@@ -137,91 +135,183 @@ function LogoutConfirm({onConfirm,onCancel}){
   );
 }
 
-// ── Calendar grid ─────────────────────────────────────────────────────────────
-// Uses a pure CSS grid approach: each cell is fixed height, events are
-// rendered inside each cell so nothing can stretch the cell width or height.
-function CalendarGrid({calMonth,events,showCompleted,todayStr,selectedDay,setSelectedDay,groupMembers}){
-  const daysInMonth=(y,m)=>new Date(y,m+1,0).getDate();
-  const firstDay=(y,m)=>new Date(y,m,1).getDay();
-  const numDays=daysInMonth(calMonth.y,calMonth.m);
-  const fdo=firstDay(calMonth.y,calMonth.m);
-  const ds=(day)=>`${calMonth.y}-${String(calMonth.m+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+// ─── Calendar Grid ─────────────────────────────────────────────────────────────
+// Cells are fixed height. Multi-day events are rendered as absolutely
+// positioned overlays on a separate layer — they never affect cell size.
+const CELL_H = 80;      // must match .plannr-cal-cell height in CSS
+const DAY_NUM_H = 24;   // space reserved for the day number at top of cell
+const BAR_H = 14;       // height of each event bar
+const BAR_GAP = 2;      // gap between bars
+const BAR_TOP = DAY_NUM_H + 2; // first bar starts here inside cell
 
-  // Build per-day event list: for multi-day events mark position
-  // position: "start" | "mid" | "end" | "single"
-  const dayMap={};
-  const addDay=(date,ev,pos)=>{
-    if(!dayMap[date])dayMap[date]=[];
-    dayMap[date].push({ev,pos});
-  };
-  const filtered=events.filter(e=>showCompleted||!e.completed);
-  filtered.forEach(ev=>{
-    if(isMultiDay(ev)){
-      const dates=getDateRange(ev.date,ev.end_date);
-      dates.forEach((d,i)=>{
-        const pos=dates.length===1?"single":i===0?"start":i===dates.length-1?"end":"mid";
-        addDay(d,ev,pos);
+function CalendarGrid({calMonth,events,showCompleted,today,selectedDay,setSelectedDay,groupMembers}){
+  const gridRef = useRef(null);
+  const [cellRects, setCellRects] = useState({});
+
+  const Y = calMonth.y, M = calMonth.m;
+  const daysInMonth = new Date(Y, M+1, 0).getDate();
+  const firstDow = new Date(Y, M, 1).getDay();
+  const ds = day => `${Y}-${String(M+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+
+  // Measure every cell after render / resize
+  useEffect(()=>{
+    if(!gridRef.current) return;
+    const measure = () => {
+      const parent = gridRef.current.getBoundingClientRect();
+      const rects = {};
+      gridRef.current.querySelectorAll("[data-day]").forEach(el=>{
+        const r = el.getBoundingClientRect();
+        rects[el.dataset.day] = {
+          left: r.left - parent.left,
+          top:  r.top  - parent.top,
+          w: r.width,
+          h: r.height,
+        };
       });
-    } else {
-      addDay(ev.date,ev,"single");
-    }
+      setCellRects(rects);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(gridRef.current);
+    return () => ro.disconnect();
+  }, [calMonth]);
+
+  const filtered = events.filter(e => showCompleted || !e.completed);
+
+  // ── single-day events per cell ─────────────────────────────────────────────
+  const singleByDay = {};
+  filtered.filter(e => !isMultiDay(e)).forEach(e=>{
+    if(!singleByDay[e.date]) singleByDay[e.date]=[];
+    singleByDay[e.date].push(e);
+  });
+
+  // ── multi-day events split into per-week segments ─────────────────────────
+  // Each segment = one horizontal bar across consecutive days in the same week row
+  const segments = [];
+  filtered.filter(e => isMultiDay(e)).forEach(ev=>{
+    const all = getDateRange(ev.date, ev.end_date);
+    let seg = [];
+    all.forEach(d=>{
+      const dow = new Date(d+"T00:00:00").getDay();
+      seg.push(d);
+      if(dow === 6 || d === all[all.length-1]){
+        segments.push({ev, days:[...seg]});
+        seg=[];
+      }
+    });
+  });
+
+  // Assign vertical lanes within each week so bars don't overlap
+  // Key = week start date (Sunday)
+  const weekLanes = {}; // weekKey -> [{evId, endDate, lane}]
+  const segLane = {}; // evId+startDay -> lane number
+  segments.forEach(({ev, days})=>{
+    const startD = days[0];
+    const endD   = days[days.length-1];
+    const [y,mo,d] = startD.split("-").map(Number);
+    const dow = new Date(y,mo-1,d).getDay();
+    const wkKey = `${y}-${mo}-${d-dow}`;
+    if(!weekLanes[wkKey]) weekLanes[wkKey]=[];
+    const used = weekLanes[wkKey];
+    let lane = 0;
+    while(used.some(u => u.lane===lane && u.endD >= startD)) lane++;
+    used.push({evId:ev.id, endD, lane});
+    segLane[ev.id+startD] = lane;
   });
 
   return(
     <div className="plannr-cal-grid">
-      {/* Day headers */}
+      {/* Day-of-week headers */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)"}}>
-        {["S","M","T","W","T","F","S"].map((d,i)=><div key={i} className="plannr-cal-header-cell">{d}</div>)}
-      </div>
-      {/* Day cells — fixed height via CSS, overflow hidden */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)"}}>
-        {Array.from({length:fdo}).map((_,i)=>(
-          <div key={`p${i}`} className="plannr-cal-cell" style={{background:"var(--pad-bg)",cursor:"default"}}/>
+        {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map((d,i)=>(
+          <div key={i} className="plannr-cal-header-cell" style={{fontSize:11}}>{d}</div>
         ))}
-        {Array.from({length:numDays}).map((_,i)=>{
-          const day=i+1;
-          const date=ds(day);
-          const isToday=date===todayStr,isSel=selectedDay===date;
-          const items=dayMap[date]||[];
-          return(
-            <div key={day} className="plannr-cal-cell"
-              onClick={()=>setSelectedDay(isSel?null:date)}
-              style={{background:isSel?"var(--sel-bg)":isToday?"var(--today-bg)":"transparent"}}>
-              {/* Day number */}
-              <div style={{display:"flex",justifyContent:"center",marginBottom:2}}>
-                <div style={{width:20,height:20,borderRadius:"50%",background:isToday?"var(--accent)":"transparent",color:isToday?"#fff":"var(--text)",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:isToday?700:400,fontSize:11,flexShrink:0}}>{day}</div>
-              </div>
-              {/* Event chips — max 3 visible */}
-              {items.slice(0,3).map(({ev,pos},idx)=>{
-                const color=getMemberColor(groupMembers,ev.attendees[0]);
-                const isStart=pos==="start"||pos==="single";
-                const isEnd=pos==="end"||pos==="single";
-                const isMid=pos==="mid";
-                return(
-                  <div key={ev.id+pos+idx} style={{
-                    fontSize:8,
-                    lineHeight:"1.3",
-                    color:"#fff",
-                    background:color,
+      </div>
+
+      {/* Grid + overlay wrapper */}
+      <div ref={gridRef} style={{position:"relative"}}>
+
+        {/* ── Fixed-height cells ── */}
+        <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)"}}>
+          {/* leading empty pads */}
+          {Array.from({length:firstDow}).map((_,i)=>(
+            <div key={`pad${i}`} className="plannr-cal-cell" style={{background:"var(--pad-bg)",cursor:"default"}}/>
+          ))}
+
+          {Array.from({length:daysInMonth}).map((_,i)=>{
+            const day=i+1, date=ds(day);
+            const isToday=date===today, isSel=selectedDay===date;
+            const singles = singleByDay[date]||[];
+            // how many lanes are occupied by multi-day bars on this day?
+            const multiLanesUsed = segments.filter(s=>s.days.includes(date)).length;
+            // available rows for single events
+            const maxSingle = Math.max(0, Math.floor((CELL_H - BAR_TOP - multiLanesUsed*(BAR_H+BAR_GAP)) / (BAR_H+BAR_GAP)));
+
+            return(
+              <div key={day} data-day={date} className="plannr-cal-cell"
+                onClick={()=>setSelectedDay(isSel?null:date)}
+                style={{background:isSel?"var(--sel-bg)":isToday?"var(--today-bg)":"transparent"}}>
+
+                {/* Day number circle */}
+                <div style={{display:"flex",justifyContent:"center",height:DAY_NUM_H,alignItems:"center"}}>
+                  <div style={{width:22,height:22,borderRadius:"50%",background:isToday?"var(--accent)":"transparent",color:isToday?"#fff":"var(--text)",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:isToday?700:400,fontSize:12}}>{day}</div>
+                </div>
+
+                {/* Invisible spacer rows for occupied multi-day lanes */}
+                {segments.filter(s=>s.days.includes(date)).map((_,li)=>(
+                  <div key={li} style={{height:BAR_H+BAR_GAP}}/>
+                ))}
+
+                {/* Single-day event chips */}
+                {singles.slice(0,Math.max(1,maxSingle)).map(ev=>(
+                  <div key={ev.id} style={{
+                    fontSize:9,fontWeight:500,color:"#fff",
+                    background:getMemberColor(groupMembers,ev.attendees[0]),
                     opacity:ev.completed?0.5:1,
-                    marginBottom:1,
-                    padding:"1px 3px",
-                    // rounded only on start/end
-                    borderRadius:`${isStart?3:0}px ${isEnd?3:0}px ${isEnd?3:0}px ${isStart?3:0}px`,
-                    // bleed into borders for mid/end segments
-                    marginLeft:isMid||pos==="end"?-1:1,
-                    marginRight:isMid||pos==="start"?-1:1,
-                    overflow:"hidden",
-                    // only show text on start
-                    whiteSpace: isStart?"normal":"nowrap",
-                    wordBreak: isStart?"break-word":"normal",
-                    minHeight:10,
-                  }}>
-                    {isStart?(ev.completed?"✓ ":"")+ev.title:""}
-                  </div>
-                );
-              })}
-              {items.length>3&&<div style={{fontSize:8,color:"var(--text3)",textAlign:"center"}}>+{items.length-3}</div>}
+                    borderRadius:3,padding:"1px 3px",
+                    marginBottom:BAR_GAP,
+                    overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis",
+                    height:BAR_H,lineHeight:`${BAR_H}px`,
+                  }}>{ev.completed?"✓ ":""}{ev.title}</div>
+                ))}
+                {singles.length>Math.max(1,maxSingle)&&(
+                  <div style={{fontSize:8,color:"var(--text3)",textAlign:"center"}}>+{singles.length-Math.max(1,maxSingle)}</div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* ── Multi-day overlay bars (absolutely positioned, never affect cell size) ── */}
+        {segments.map(({ev,days})=>{
+          const startD=days[0], endD=days[days.length-1];
+          const startRect=cellRects[startD], endRect=cellRects[endD];
+          if(!startRect||!endRect) return null;
+          const lane = segLane[ev.id+startD]||0;
+          const color = getMemberColor(groupMembers,ev.attendees[0]);
+          const top  = startRect.top + BAR_TOP + lane*(BAR_H+BAR_GAP);
+          const left = startRect.left + 1;
+          const width= (endRect.left+endRect.w) - startRect.left - 2;
+          const isSegStart = startD===ev.date;
+          const isSegEnd   = endD===ev.end_date;
+          return(
+            <div key={ev.id+startD}
+              onClick={e=>{e.stopPropagation();setSelectedDay(startD);}}
+              style={{
+                position:"absolute", top, left, width,
+                height:BAR_H, borderRadius:`${isSegStart?4:0}px ${isSegEnd?4:0}px ${isSegEnd?4:0}px ${isSegStart?4:0}px`,
+                background:color, opacity:ev.completed?0.5:1,
+                display:"flex",alignItems:"center",
+                paddingLeft:isSegStart?5:2,
+                overflow:"hidden",cursor:"pointer",
+                zIndex:5,
+              }}
+              title={ev.title}>
+              {isSegStart&&(
+                <span style={{fontSize:9,fontWeight:600,color:"#fff",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",pointerEvents:"none"}}>
+                  {ev.completed?"✓ ":""}{ev.title}
+                </span>
+              )}
             </div>
           );
         })}
@@ -230,7 +320,7 @@ function CalendarGrid({calMonth,events,showCompleted,todayStr,selectedDay,setSel
   );
 }
 
-// ── Main App ──────────────────────────────────────────────────────────────────
+// ─── Main App ──────────────────────────────────────────────────────────────────
 export default function App(){
   useEffect(()=>{injectStyles();},[]);
 
@@ -486,7 +576,7 @@ export default function App(){
                 </div>
               ))}
               <button className="plannr-btn-small" onClick={()=>{leaveGroup();setShowGroupMenu(false);}} style={{marginTop:12,color:"var(--danger)",borderColor:"var(--danger)",width:"100%"}}>Leave Group</button>
-              <p style={{margin:"16px 0 0",fontSize:11,color:"var(--text3)",textAlign:"center"}}>Plannr v1.9</p>
+              <p style={{margin:"16px 0 0",fontSize:11,color:"var(--text3)",textAlign:"center"}}>Plannr v2.0</p>
             </div>
           )}
           <button className="plannr-btn-small" onClick={confirmLogout}>Log out</button>
@@ -532,11 +622,10 @@ export default function App(){
               calMonth={calMonth}
               events={events}
               showCompleted={showCompleted}
-              todayStr={todayStr()}
+              today={todayStr()}
               selectedDay={selectedDay}
               setSelectedDay={setSelectedDay}
               groupMembers={groupMembers}
-              openAddEvent={openAddEvent}
             />
 
             <div style={{margin:"12px 0"}}>
