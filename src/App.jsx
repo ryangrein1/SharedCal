@@ -697,7 +697,8 @@ export default function App(){
       {/* Top nav */}
       <nav className="plannr-nav">
         <div style={{display:"flex",alignItems:"center",gap:10,minWidth:0}}>
-          <div style={{width:30,height:30,borderRadius:8,background:"var(--accent)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,flexShrink:0}}>📅</div>
+          <div style={{width:30,height:30,borderRadius:8,overflow:"hidden",flexShrink:0}}>
+            <img src="/apple-touch-icon.png" style={{width:"100%",height:"100%",display:"block"}}/></div>
           <div style={{minWidth:0}}>
             <span className="logo-text" style={{fontSize:14}}>Plannr<span className="logo-dot">.</span></span>
             <span style={{color:"var(--text3)",fontSize:12,marginLeft:6}}>{currentGroup.name}</span>
