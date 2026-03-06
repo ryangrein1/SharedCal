@@ -349,6 +349,7 @@ export default function App(){
   const[notification,setNotification]=useState(null);
   const[globalErr,setGlobalErr]=useState(null);
   const[showLogoutConfirm,setShowLogoutConfirm]=useState(false);
+  const[deleteConfirmId,setDeleteConfirmId]=useState(null);
   const groupMenuRef=useRef(null);
 
   useEffect(()=>{
@@ -479,11 +480,15 @@ export default function App(){
     try{await dbUpdate("events",`id=eq.${id}`,{completed:!ev.completed});}
     catch{setEvents(evs=>evs.map(e=>e.id===id?{...e,completed:ev.completed}:e));}
   };
-  const deleteEvent=async id=>{
+  const confirmDelete=id=>setDeleteConfirmId(id);
+  const doDelete=async()=>{
+    const id=deleteConfirmId;
+    setDeleteConfirmId(null);
     setEvents(evs=>evs.filter(e=>e.id!==id));
     try{await dbDelete("events",`id=eq.${id}`);notify("Deleted.");}
     catch{notify("Delete failed.");await refreshEvents();}
   };
+  const deleteEvent=id=>confirmDelete(id);
   const toggleAttendee=id=>setEventForm(f=>({...f,attendees:f.attendees.includes(id)?f.attendees.filter(a=>a!==id):[...f.attendees,id]}));
 
   const sorted=[...events].sort((a,b)=>(a.date+(a.time||""))<(b.date+(b.time||""))?-1:1);
@@ -520,6 +525,19 @@ export default function App(){
 
   if(!currentGroup)return(
     <div style={{minHeight:"100vh",background:"var(--bg)"}}>
+      {deleteConfirmId&&(
+        <div className="plannr-confirm-overlay">
+          <div className="plannr-confirm-box">
+            <div style={{fontSize:36,marginBottom:12}}>🗑️</div>
+            <h3 style={{margin:"0 0 8px",fontSize:18,color:"var(--text)"}}>Delete this event?</h3>
+            <p style={{margin:"0 0 24px",fontSize:14,color:"var(--text2)"}}>This can't be undone.</p>
+            <div style={{display:"flex",gap:10}}>
+              <button onClick={()=>setDeleteConfirmId(null)} style={{flex:1,padding:"11px 0",borderRadius:10,border:"1.5px solid var(--border)",background:"transparent",color:"var(--text)",fontWeight:600,fontSize:15,cursor:"pointer"}}>Cancel</button>
+              <button onClick={doDelete} style={{flex:1,padding:"11px 0",borderRadius:10,border:"none",background:"var(--danger)",color:"#fff",fontWeight:700,fontSize:15,cursor:"pointer"}}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
       {showLogoutConfirm&&<LogoutConfirm onConfirm={doLogout} onCancel={()=>setShowLogoutConfirm(false)}/>}
       <nav className="plannr-nav">
         <span style={{fontWeight:800,fontSize:18,color:"var(--text)"}}>📅 Plannr</span>
