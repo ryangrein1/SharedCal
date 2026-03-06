@@ -712,6 +712,15 @@ export default function App(){
                 <span className="plannr-code">{currentGroup.code}</span>
                 <button className="plannr-btn-small" onClick={()=>{navigator.clipboard.writeText(currentGroup.code);notify("Copied!");}}>Copy</button>
               </div>
+              <p className="plannr-section-title">Share App</p>
+              <div style={{background:"var(--surface2)",border:"1.5px solid var(--border)",borderRadius:10,padding:"12px 14px",marginBottom:16}}>
+                <p style={{fontSize:12,color:"var(--text2)",margin:"0 0 10px",lineHeight:1.5}}>Share this link so others can sign up and join your group:</p>
+                <div style={{background:"var(--code-bg)",border:"1px solid var(--border)",borderRadius:8,padding:"8px 10px",fontSize:11,color:"var(--text3)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",marginBottom:10,fontFamily:"'DM Mono',monospace"}}>{window.location.origin}</div>
+                <div style={{display:"flex",gap:8}}>
+                  <button className="plannr-btn-small" style={{flex:1,textAlign:"center",fontSize:12}} onClick={()=>{navigator.clipboard.writeText(window.location.origin);notify("Link copied!");}}>📋 Copy Link</button>
+                  <button className="plannr-btn-small" style={{flex:1,textAlign:"center",fontSize:12}} onClick={()=>{if(navigator.share){navigator.share({title:"Plannr",text:`Join me on Plannr! Use code: ${currentGroup.code}`,url:window.location.origin});}else{navigator.clipboard.writeText(window.location.origin);notify("Link copied!");}}}>↗ Share</button>
+                </div>
+              </div>
               <p className="plannr-section-title">Invite by Email</p>
               <input placeholder="friend@email.com" value={inviteEmail} onChange={e=>setInviteEmail(e.target.value)} autoCapitalize="none" style={{marginBottom:8}}/>
               {inviteMsg&&<p style={{color:"var(--danger)",fontSize:12,margin:"0 0 8px"}}>{inviteMsg}</p>}
