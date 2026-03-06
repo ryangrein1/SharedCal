@@ -27,10 +27,9 @@ const genId=()=>Math.random().toString(36).slice(2,10);
 const genCode=()=>Math.random().toString(36).slice(2,8).toUpperCase();
 const todayStr=()=>new Date().toISOString().slice(0,10);
 const fmtDate=d=>{const[y,m,day]=d.split("-");return new Date(y,m-1,day).toLocaleDateString("en-US",{weekday:"short",month:"short",day:"numeric",year:"numeric"});};
-const fmtDateShort=d=>{const[y,m,day]=d.split("-");return new Date(y,m-1,day).toLocaleDateString("en-US",{month:"short",day:"numeric"});};
 const fmtTime=t=>{if(!t)return"";const[h,m]=t.split(":").map(Number);return`${h%12||12}:${String(m).padStart(2,"0")} ${h>=12?"PM":"AM"}`;};
-const COLORS=["#4f46e5","#0891b2","#059669","#d97706","#dc2626","#7c3aed","#db2777"];
-const getMemberColor=(members,uid)=>COLORS[members.findIndex(m=>m.id===uid)%COLORS.length]||"#6b7280";
+const COLORS=["#6366f1","#06b6d4","#10b981","#f59e0b","#ef4444","#8b5cf6","#ec4899"];
+const getMemberColor=(members,uid)=>COLORS[members.findIndex(m=>m.id===uid)%COLORS.length]||"#94a3b8";
 
 const getDateRange=(start,end)=>{
   if(!start||!end||end<start)return start?[start]:[];
@@ -46,65 +45,217 @@ const saveSession=u=>{try{localStorage.setItem(SESSION_KEY,JSON.stringify(u));}c
 const loadSession=()=>{try{return JSON.parse(localStorage.getItem(SESSION_KEY));}catch{return null;}};
 const clearSession=()=>{try{localStorage.removeItem(SESSION_KEY);}catch{}};
 
+const CELL_H=80;
+const DAY_NUM_H=24;
+const BAR_H=14;
+const BAR_GAP=2;
+const BAR_TOP=DAY_NUM_H+2;
+
 const injectStyles=()=>{
   if(document.getElementById("plannr-styles"))return;
   const el=document.createElement("style");
   el.id="plannr-styles";
   el.textContent=`
-    :root{--bg:#f1f5f9;--surface:#ffffff;--surface2:#f8fafc;--border:#e2e8f0;--border2:#e2e8f0;--text:#1e293b;--text2:#475569;--text3:#94a3b8;--input-bg:#ffffff;--nav-bg:#ffffff;--chip-bg:#f1f5f9;--code-bg:#f1f5f9;--code-text:#1e293b;--modal-bg:#ffffff;--pad-bg:#f8fafc;--today-bg:#fafafe;--sel-bg:#eef2ff;--danger:#dc2626;--accent:#4f46e5;}
-    @media(prefers-color-scheme:dark){:root{--bg:#0f172a;--surface:#1e293b;--surface2:#263347;--border:#334155;--border2:#334155;--text:#f1f5f9;--text2:#94a3b8;--text3:#64748b;--input-bg:#1e293b;--nav-bg:#1e293b;--chip-bg:#334155;--code-bg:#0f172a;--code-text:#f1f5f9;--modal-bg:#1e293b;--pad-bg:#151f2e;--today-bg:#1e2d45;--sel-bg:#2d2f6b;--danger:#f87171;--accent:#6366f1;}}
-    *{box-sizing:border-box;}
-    body{background:var(--bg);color:var(--text);margin:0;font-family:system-ui,sans-serif;}
-    input:not([type="checkbox"]):not([type="radio"]),textarea{background:var(--input-bg)!important;color:var(--text)!important;border:1.5px solid var(--border)!important;border-radius:10px;font-size:16px;font-family:inherit;outline:none;width:100%;padding:12px 14px;display:block;margin-bottom:12px;-webkit-appearance:none;appearance:none;}
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
+    :root{
+      --bg:#f0f2f7;
+      --surface:#ffffff;
+      --surface2:#f7f8fc;
+      --border:#e4e7ef;
+      --text:#111827;
+      --text2:#4b5563;
+      --text3:#9ca3af;
+      --input-bg:#ffffff;
+      --nav-bg:#ffffff;
+      --chip-bg:#f0f2f7;
+      --code-bg:#f0f2f7;
+      --modal-bg:#ffffff;
+      --pad-bg:#f7f8fc;
+      --today-bg:#eef0ff;
+      --sel-bg:#e8eaff;
+      --danger:#ef4444;
+      --accent:#4f46e5;
+      --accent2:#6366f1;
+      --radius:14px;
+      --shadow:0 2px 12px rgba(79,70,229,0.08);
+      --shadow-lg:0 8px 32px rgba(79,70,229,0.14);
+    }
+    @media(prefers-color-scheme:dark){:root{
+      --bg:#0d1117;
+      --surface:#161b27;
+      --surface2:#1c2333;
+      --border:#2d3748;
+      --text:#f0f4ff;
+      --text2:#8892b0;
+      --text3:#4a5568;
+      --input-bg:#1c2333;
+      --nav-bg:#161b27;
+      --chip-bg:#2d3748;
+      --code-bg:#0d1117;
+      --modal-bg:#161b27;
+      --pad-bg:#0f1420;
+      --today-bg:#1a2040;
+      --sel-bg:#1e2354;
+      --danger:#f87171;
+      --accent:#6366f1;
+      --accent2:#818cf8;
+      --shadow:0 2px 12px rgba(0,0,0,0.3);
+      --shadow-lg:0 8px 32px rgba(0,0,0,0.4);
+    }}
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{background:var(--bg);color:var(--text);font-family:'DM Sans',system-ui,sans-serif;}
+    input:not([type="checkbox"]):not([type="radio"]),textarea,select{
+      background:var(--input-bg)!important;
+      color:var(--text)!important;
+      border:1.5px solid var(--border)!important;
+      border-radius:10px;
+      font-size:15px;
+      font-family:'DM Sans',inherit;
+      outline:none;
+      width:100%;
+      padding:11px 14px;
+      display:block;
+      margin-bottom:12px;
+      -webkit-appearance:none;
+      appearance:none;
+      transition:border-color 0.15s,box-shadow 0.15s;
+    }
+    input:focus,textarea:focus{border-color:var(--accent)!important;box-shadow:0 0 0 3px rgba(99,102,241,0.12)!important;}
     input::placeholder,textarea::placeholder{color:var(--text3)!important;opacity:1;}
-    .plannr-btn-primary{display:block;width:100%;padding:13px 0;background:var(--accent);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:16px;cursor:pointer;margin-bottom:10px;-webkit-tap-highlight-color:transparent;}
-    .plannr-btn-small{padding:8px 14px;border-radius:8px;border:1.5px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer;font-size:14px;font-weight:500;-webkit-tap-highlight-color:transparent;}
-    .plannr-card{background:var(--surface);border-radius:12px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,0.08);}
-    .plannr-input-label{display:block;font-size:13px;font-weight:600;color:var(--text2);margin-bottom:6px;}
-    .plannr-event-card{background:var(--surface);border-radius:12px;padding:14px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,0.08);}
-    .plannr-nav{background:var(--nav-bg);border-bottom:1px solid var(--border);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:8px;position:sticky;top:0;z-index:50;}
-    .plannr-cal-grid{background:var(--surface);border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08);}
-    .plannr-cal-header-cell{padding:8px 0;text-align:center;font-size:12px;font-weight:600;color:var(--text3);border-bottom:1px solid var(--border2);background:var(--surface);}
-    /* FIXED height cell — never grows */
+    .plannr-btn-primary{
+      display:block;width:100%;padding:13px 0;
+      background:var(--accent);color:#fff;border:none;
+      border-radius:10px;font-weight:600;font-size:15px;
+      cursor:pointer;margin-bottom:10px;
+      -webkit-tap-highlight-color:transparent;
+      font-family:'DM Sans',inherit;
+      transition:opacity 0.15s,transform 0.1s;
+      letter-spacing:0.01em;
+    }
+    .plannr-btn-primary:active{transform:scale(0.98);}
+    .plannr-btn-small{
+      padding:7px 13px;border-radius:8px;
+      border:1.5px solid var(--border);
+      background:var(--surface);color:var(--text);
+      cursor:pointer;font-size:13px;font-weight:500;
+      -webkit-tap-highlight-color:transparent;
+      font-family:'DM Sans',inherit;
+      transition:border-color 0.15s,background 0.15s;
+    }
+    .plannr-btn-small:hover{border-color:var(--accent);background:var(--sel-bg);}
+    .plannr-card{
+      background:var(--surface);
+      border-radius:var(--radius);
+      padding:22px;
+      box-shadow:var(--shadow);
+      border:1px solid var(--border);
+    }
+    .plannr-input-label{display:block;font-size:12px;font-weight:600;color:var(--text3);margin-bottom:5px;text-transform:uppercase;letter-spacing:0.06em;}
+    .plannr-event-card{
+      background:var(--surface);
+      border-radius:12px;
+      padding:14px 16px;
+      margin-bottom:8px;
+      box-shadow:var(--shadow);
+      border:1px solid var(--border);
+      transition:box-shadow 0.15s;
+    }
+    .plannr-event-card:hover{box-shadow:var(--shadow-lg);}
+    .plannr-nav{
+      background:var(--nav-bg);
+      border-bottom:1px solid var(--border);
+      padding:0 20px;
+      display:flex;align-items:center;justify-content:space-between;gap:8px;
+      position:sticky;top:0;z-index:50;
+      height:56px;
+    }
+    .plannr-cal-grid{background:var(--surface);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);border:1px solid var(--border);}
+    .plannr-cal-header-cell{padding:10px 0;text-align:center;font-size:11px;font-weight:600;color:var(--text3);border-bottom:1px solid var(--border);background:var(--surface2);letter-spacing:0.08em;text-transform:uppercase;}
     .plannr-cal-cell{
-      height:80px;
-      border-right:1px solid var(--border2);
-      border-bottom:1px solid var(--border2);
+      height:${CELL_H}px;
+      border-right:1px solid var(--border);
+      border-bottom:1px solid var(--border);
       cursor:pointer;
       overflow:hidden;
       position:relative;
       padding:2px;
+      transition:background 0.1s;
     }
-    .plannr-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:flex-end;justify-content:center;z-index:200;}
-    .plannr-modal{background:var(--modal-bg);border-radius:20px 20px 0 0;padding:24px 20px 36px;width:100%;max-width:500px;box-shadow:0 -4px 32px rgba(0,0,0,0.2);max-height:90vh;overflow-y:auto;}
-    .plannr-group-menu{position:absolute;right:0;top:44px;background:var(--surface);border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,0.2);padding:20px;width:280px;z-index:100;border:1px solid var(--border);}
-    .plannr-code{background:var(--code-bg);color:var(--code-text);padding:8px 14px;border-radius:8px;font-weight:700;letter-spacing:4px;font-size:18px;flex:1;text-align:center;font-family:monospace;border:1.5px solid var(--border);}
-    .plannr-tag{font-size:12px;color:#fff;border-radius:10px;padding:2px 10px;font-weight:500;}
-    .plannr-avatar{width:32px;height:32px;border-radius:50%;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0;}
-    .plannr-empty{text-align:center;color:var(--text3);padding:32px 0;font-size:15px;}
-    .plannr-tab{padding:12px 20px;border:none;background:transparent;cursor:pointer;font-size:15px;-webkit-tap-highlight-color:transparent;}
-    .plannr-section-title{font-size:12px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin:0 0 6px;}
-    .plannr-notes-box{margin-top:10px;margin-left:28px;font-size:14px;color:var(--text2);background:var(--surface2);border-radius:8px;padding:10px 12px;}
-    .plannr-confirm-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:300;padding:16px;}
-    .plannr-confirm-box{background:var(--modal-bg);border-radius:16px;padding:28px 24px;width:100%;max-width:320px;box-shadow:0 8px 32px rgba(0,0,0,0.2);text-align:center;}
-    .plannr-checkbox{width:20px;height:20px;border-radius:6px;flex-shrink:0;border:2px solid var(--border);background:var(--input-bg);display:flex;align-items:center;justify-content:center;transition:background 0.15s,border-color 0.15s;}
+    .plannr-cal-cell:hover{background:var(--sel-bg)!important;}
+    .plannr-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);display:flex;align-items:flex-end;justify-content:center;z-index:200;}
+    .plannr-modal{
+      background:var(--modal-bg);
+      border-radius:20px 20px 0 0;
+      padding:24px 22px 40px;
+      width:100%;max-width:520px;
+      box-shadow:0 -8px 40px rgba(0,0,0,0.2);
+      max-height:92vh;overflow-y:auto;
+      border-top:1px solid var(--border);
+    }
+    .plannr-group-menu{
+      position:absolute;right:0;top:48px;
+      background:var(--surface);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow-lg);
+      padding:20px;width:290px;z-index:100;
+      border:1px solid var(--border);
+    }
+    .plannr-code{
+      background:var(--code-bg);color:var(--text);
+      padding:8px 14px;border-radius:8px;
+      font-weight:700;letter-spacing:5px;font-size:17px;
+      flex:1;text-align:center;
+      font-family:'DM Mono',monospace;
+      border:1.5px solid var(--border);
+    }
+    .plannr-tag{font-size:11px;color:#fff;border-radius:20px;padding:3px 10px;font-weight:600;letter-spacing:0.01em;}
+    .plannr-avatar{width:30px;height:30px;border-radius:50%;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;flex-shrink:0;}
+    .plannr-empty{text-align:center;color:var(--text3);padding:40px 0;font-size:14px;}
+    .plannr-tab{
+      padding:14px 18px;border:none;background:transparent;
+      cursor:pointer;font-size:14px;font-family:'DM Sans',inherit;
+      -webkit-tap-highlight-color:transparent;
+      transition:color 0.15s;
+    }
+    .plannr-section-title{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin:0 0 8px;}
+    .plannr-notes-box{margin-top:10px;margin-left:28px;font-size:13px;color:var(--text2);background:var(--surface2);border-radius:8px;padding:10px 13px;line-height:1.6;border:1px solid var(--border);}
+    .plannr-confirm-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;z-index:300;padding:16px;}
+    .plannr-confirm-box{background:var(--modal-bg);border-radius:18px;padding:28px 24px;width:100%;max-width:320px;box-shadow:var(--shadow-lg);text-align:center;border:1px solid var(--border);}
+    .plannr-checkbox{width:20px;height:20px;border-radius:6px;flex-shrink:0;border:2px solid var(--border);background:var(--input-bg);display:flex;align-items:center;justify-content:center;transition:background 0.15s,border-color 0.15s;cursor:pointer;}
     .plannr-checkbox.checked{background:var(--accent);border-color:var(--accent);}
     .plannr-checkbox svg{display:none;}
     .plannr-checkbox.checked svg{display:block;}
-    .multiday-badge{display:inline-block;font-size:10px;background:var(--accent);color:#fff;border-radius:4px;padding:1px 5px;margin-left:6px;vertical-align:middle;font-weight:600;}
+    .multiday-badge{display:inline-block;font-size:10px;background:var(--accent);color:#fff;border-radius:4px;padding:1px 6px;margin-left:6px;vertical-align:middle;font-weight:600;font-family:'DM Mono',monospace;}
+    .logo-text{font-size:17px;font-weight:700;color:var(--text);letter-spacing:-0.02em;}
+    .logo-dot{color:var(--accent);}
+    .tab-bar{background:var(--nav-bg);border-bottom:1px solid var(--border);padding:0 20px;display:flex;align-items:center;}
+    .add-btn{
+      padding:8px 16px;margin:7px 0 7px auto;
+      border-radius:20px;border:none;
+      background:var(--accent);color:#fff;
+      font-weight:600;cursor:pointer;font-size:13px;
+      font-family:'DM Sans',inherit;
+      display:flex;align-items:center;gap:6px;
+      transition:opacity 0.15s,transform 0.1s;
+      letter-spacing:0.01em;
+    }
+    .add-btn:active{transform:scale(0.96);}
+    ::-webkit-scrollbar{width:6px;}
+    ::-webkit-scrollbar-track{background:transparent;}
+    ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
   `;
   document.head.appendChild(el);
 };
 
 function Toggle({checked,onChange,label}){
   return(
-    <div style={{cursor:"pointer",userSelect:"none",display:"inline-flex",alignItems:"center",gap:10,WebkitTapHighlightColor:"transparent"}}
+    <div style={{cursor:"pointer",userSelect:"none",display:"inline-flex",alignItems:"center",gap:9,WebkitTapHighlightColor:"transparent"}}
       onPointerDown={e=>{e.preventDefault();onChange(!checked);}}>
-      <div style={{position:"relative",width:44,height:26,flexShrink:0}}>
-        <div style={{position:"absolute",inset:0,borderRadius:13,background:checked?"#4f46e5":"#cbd5e1",transition:"background 0.2s"}}/>
-        <div style={{position:"absolute",top:3,left:checked?21:3,width:20,height:20,borderRadius:"50%",background:"#fff",boxShadow:"0 1px 4px rgba(0,0,0,0.25)",transition:"left 0.2s"}}/>
+      <div style={{position:"relative",width:40,height:22,flexShrink:0}}>
+        <div style={{position:"absolute",inset:0,borderRadius:11,background:checked?"var(--accent)":"var(--border)",transition:"background 0.2s"}}/>
+        <div style={{position:"absolute",top:3,left:checked?21:3,width:16,height:16,borderRadius:"50%",background:"#fff",boxShadow:"0 1px 4px rgba(0,0,0,0.2)",transition:"left 0.2s"}}/>
       </div>
-      <span style={{fontSize:14,color:"var(--text2)"}}>{label}</span>
+      <span style={{fontSize:13,color:"var(--text2)"}}>{label}</span>
     </div>
   );
 }
@@ -112,8 +263,8 @@ function Toggle({checked,onChange,label}){
 function Checkbox({checked,onChange}){
   return(
     <span className={`plannr-checkbox${checked?" checked":""}`} onClick={onChange}>
-      <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-        <polyline points="2,6 5,9 10,3" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+        <polyline points="2,6 5,9 10,3" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
       </svg>
     </span>
   );
@@ -123,152 +274,116 @@ function LogoutConfirm({onConfirm,onCancel}){
   return(
     <div className="plannr-confirm-overlay">
       <div className="plannr-confirm-box">
-        <div style={{fontSize:36,marginBottom:12}}>👋</div>
-        <h3 style={{margin:"0 0 8px",fontSize:18,color:"var(--text)"}}>Log out of Plannr?</h3>
-        <p style={{margin:"0 0 24px",fontSize:14,color:"var(--text2)"}}>You'll need to log back in to see your events.</p>
+        <div style={{fontSize:32,marginBottom:12}}>👋</div>
+        <h3 style={{margin:"0 0 8px",fontSize:17,color:"var(--text)",fontWeight:700}}>Log out of Plannr?</h3>
+        <p style={{margin:"0 0 22px",fontSize:13,color:"var(--text2)",lineHeight:1.5}}>You'll need to log back in to see your events.</p>
         <div style={{display:"flex",gap:10}}>
-          <button onClick={onCancel} style={{flex:1,padding:"11px 0",borderRadius:10,border:"1.5px solid var(--border)",background:"transparent",color:"var(--text)",fontWeight:600,fontSize:15,cursor:"pointer"}}>Cancel</button>
-          <button onClick={onConfirm} style={{flex:1,padding:"11px 0",borderRadius:10,border:"none",background:"var(--danger)",color:"#fff",fontWeight:700,fontSize:15,cursor:"pointer"}}>Log Out</button>
+          <button onClick={onCancel} style={{flex:1,padding:"11px 0",borderRadius:10,border:"1.5px solid var(--border)",background:"transparent",color:"var(--text)",fontWeight:600,fontSize:14,cursor:"pointer",fontFamily:"'DM Sans',inherit"}}>Cancel</button>
+          <button onClick={onConfirm} style={{flex:1,padding:"11px 0",borderRadius:10,border:"none",background:"var(--danger)",color:"#fff",fontWeight:700,fontSize:14,cursor:"pointer",fontFamily:"'DM Sans',inherit"}}>Log Out</button>
         </div>
       </div>
     </div>
   );
 }
 
-// ─── Calendar Grid ─────────────────────────────────────────────────────────────
-// Cells are fixed height. Multi-day events are rendered as absolutely
-// positioned overlays on a separate layer — they never affect cell size.
-const CELL_H = 80;      // must match .plannr-cal-cell height in CSS
-const DAY_NUM_H = 24;   // space reserved for the day number at top of cell
-const BAR_H = 14;       // height of each event bar
-const BAR_GAP = 2;      // gap between bars
-const BAR_TOP = DAY_NUM_H + 2; // first bar starts here inside cell
-
 function CalendarGrid({calMonth,events,showCompleted,today,selectedDay,setSelectedDay,groupMembers}){
-  const gridRef = useRef(null);
-  const [cellRects, setCellRects] = useState({});
+  const gridRef=useRef(null);
+  const[cellRects,setCellRects]=useState({});
+  const Y=calMonth.y,M=calMonth.m;
+  const daysInMonth=new Date(Y,M+1,0).getDate();
+  const firstDow=new Date(Y,M,1).getDay();
+  const ds=day=>`${Y}-${String(M+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
 
-  const Y = calMonth.y, M = calMonth.m;
-  const daysInMonth = new Date(Y, M+1, 0).getDate();
-  const firstDow = new Date(Y, M, 1).getDay();
-  const ds = day => `${Y}-${String(M+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
-
-  // Measure every cell after render / resize
   useEffect(()=>{
-    if(!gridRef.current) return;
-    const measure = () => {
-      const parent = gridRef.current.getBoundingClientRect();
-      const rects = {};
+    if(!gridRef.current)return;
+    const measure=()=>{
+      const parent=gridRef.current.getBoundingClientRect();
+      const rects={};
       gridRef.current.querySelectorAll("[data-day]").forEach(el=>{
-        const r = el.getBoundingClientRect();
-        rects[el.dataset.day] = {
-          left: r.left - parent.left,
-          top:  r.top  - parent.top,
-          w: r.width,
-          h: r.height,
-        };
+        const r=el.getBoundingClientRect();
+        rects[el.dataset.day]={left:r.left-parent.left,top:r.top-parent.top,w:r.width,h:r.height};
       });
       setCellRects(rects);
     };
     measure();
-    const ro = new ResizeObserver(measure);
+    const ro=new ResizeObserver(measure);
     ro.observe(gridRef.current);
-    return () => ro.disconnect();
-  }, [calMonth]);
+    return()=>ro.disconnect();
+  },[calMonth]);
 
-  const filtered = events.filter(e => showCompleted || !e.completed);
-
-  // ── single-day events per cell ─────────────────────────────────────────────
-  const singleByDay = {};
-  filtered.filter(e => !isMultiDay(e)).forEach(e=>{
-    if(!singleByDay[e.date]) singleByDay[e.date]=[];
+  const filtered=events.filter(e=>showCompleted||!e.completed);
+  const singleByDay={};
+  filtered.filter(e=>!isMultiDay(e)).forEach(e=>{
+    if(!singleByDay[e.date])singleByDay[e.date]=[];
     singleByDay[e.date].push(e);
   });
 
-  // ── multi-day events split into per-week segments ─────────────────────────
-  // Each segment = one horizontal bar across consecutive days in the same week row
-  const segments = [];
-  filtered.filter(e => isMultiDay(e)).forEach(ev=>{
-    const all = getDateRange(ev.date, ev.end_date);
-    let seg = [];
+  const segments=[];
+  filtered.filter(e=>isMultiDay(e)).forEach(ev=>{
+    const all=getDateRange(ev.date,ev.end_date);
+    let seg=[];
     all.forEach(d=>{
-      const dow = new Date(d+"T00:00:00").getDay();
+      const dow=new Date(d+"T00:00:00").getDay();
       seg.push(d);
-      if(dow === 6 || d === all[all.length-1]){
-        segments.push({ev, days:[...seg]});
-        seg=[];
-      }
+      if(dow===6||d===all[all.length-1]){segments.push({ev,days:[...seg]});seg=[];}
     });
   });
 
-  // Assign vertical lanes within each week so bars don't overlap
-  // Key = week start date (Sunday)
-  const weekLanes = {}; // weekKey -> [{evId, endDate, lane}]
-  const segLane = {}; // evId+startDay -> lane number
-  segments.forEach(({ev, days})=>{
-    const startD = days[0];
-    const endD   = days[days.length-1];
-    const [y,mo,d] = startD.split("-").map(Number);
-    const dow = new Date(y,mo-1,d).getDay();
-    const wkKey = `${y}-${mo}-${d-dow}`;
-    if(!weekLanes[wkKey]) weekLanes[wkKey]=[];
-    const used = weekLanes[wkKey];
-    let lane = 0;
-    while(used.some(u => u.lane===lane && u.endD >= startD)) lane++;
-    used.push({evId:ev.id, endD, lane});
-    segLane[ev.id+startD] = lane;
+  const weekLanes={};
+  const segLane={};
+  segments.forEach(({ev,days})=>{
+    const startD=days[0],endD=days[days.length-1];
+    const[y,mo,d]=startD.split("-").map(Number);
+    const dow=new Date(y,mo-1,d).getDay();
+    const wkKey=`${y}-${mo}-${d-dow}`;
+    if(!weekLanes[wkKey])weekLanes[wkKey]=[];
+    const used=weekLanes[wkKey];
+    let lane=0;
+    while(used.some(u=>u.lane===lane&&u.endD>=startD))lane++;
+    used.push({evId:ev.id,endD,lane});
+    segLane[ev.id+startD]=lane;
   });
 
   return(
     <div className="plannr-cal-grid">
-      {/* Day-of-week headers */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)"}}>
         {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map((d,i)=>(
-          <div key={i} className="plannr-cal-header-cell" style={{fontSize:11}}>{d}</div>
+          <div key={i} className="plannr-cal-header-cell">{d}</div>
         ))}
       </div>
-
-      {/* Grid + overlay wrapper */}
       <div ref={gridRef} style={{position:"relative"}}>
-
-        {/* ── Fixed-height cells ── */}
         <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)"}}>
-          {/* leading empty pads */}
           {Array.from({length:firstDow}).map((_,i)=>(
             <div key={`pad${i}`} className="plannr-cal-cell" style={{background:"var(--pad-bg)",cursor:"default"}}/>
           ))}
-
           {Array.from({length:daysInMonth}).map((_,i)=>{
-            const day=i+1, date=ds(day);
-            const isToday=date===today, isSel=selectedDay===date;
-            const singles = singleByDay[date]||[];
-            // how many lanes are occupied by multi-day bars on this day?
-            const multiLanesUsed = segments.filter(s=>s.days.includes(date)).length;
-            // available rows for single events
-            const maxSingle = Math.max(0, Math.floor((CELL_H - BAR_TOP - multiLanesUsed*(BAR_H+BAR_GAP)) / (BAR_H+BAR_GAP)));
-
+            const day=i+1,date=ds(day);
+            const isToday=date===today,isSel=selectedDay===date;
+            const singles=singleByDay[date]||[];
+            const multiLanesUsed=segments.filter(s=>s.days.includes(date)).length;
+            const maxSingle=Math.max(0,Math.floor((CELL_H-BAR_TOP-multiLanesUsed*(BAR_H+BAR_GAP))/(BAR_H+BAR_GAP)));
             return(
               <div key={day} data-day={date} className="plannr-cal-cell"
                 onClick={()=>setSelectedDay(isSel?null:date)}
                 style={{background:isSel?"var(--sel-bg)":isToday?"var(--today-bg)":"transparent"}}>
-
-                {/* Day number circle */}
                 <div style={{display:"flex",justifyContent:"center",height:DAY_NUM_H,alignItems:"center"}}>
-                  <div style={{width:22,height:22,borderRadius:"50%",background:isToday?"var(--accent)":"transparent",color:isToday?"#fff":"var(--text)",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:isToday?700:400,fontSize:12}}>{day}</div>
+                  <div style={{
+                    width:22,height:22,borderRadius:"50%",
+                    background:isToday?"var(--accent)":"transparent",
+                    color:isToday?"#fff":"var(--text)",
+                    display:"flex",alignItems:"center",justifyContent:"center",
+                    fontWeight:isToday?700:400,fontSize:11,
+                  }}>{day}</div>
                 </div>
-
-                {/* Invisible spacer rows for occupied multi-day lanes */}
                 {segments.filter(s=>s.days.includes(date)).map((_,li)=>(
                   <div key={li} style={{height:BAR_H+BAR_GAP}}/>
                 ))}
-
-                {/* Single-day event chips */}
                 {singles.slice(0,Math.max(1,maxSingle)).map(ev=>(
                   <div key={ev.id} style={{
-                    fontSize:9,fontWeight:500,color:"#fff",
+                    fontSize:9,fontWeight:600,color:"#fff",
                     background:getMemberColor(groupMembers,ev.attendees[0]),
                     opacity:ev.completed?0.5:1,
-                    borderRadius:3,padding:"1px 3px",
+                    borderRadius:3,padding:"1px 4px",
                     marginBottom:BAR_GAP,
                     overflow:"hidden",whiteSpace:"nowrap",textOverflow:"ellipsis",
                     height:BAR_H,lineHeight:`${BAR_H}px`,
@@ -281,30 +396,27 @@ function CalendarGrid({calMonth,events,showCompleted,today,selectedDay,setSelect
             );
           })}
         </div>
-
-        {/* ── Multi-day overlay bars (absolutely positioned, never affect cell size) ── */}
         {segments.map(({ev,days})=>{
-          const startD=days[0], endD=days[days.length-1];
-          const startRect=cellRects[startD], endRect=cellRects[endD];
-          if(!startRect||!endRect) return null;
-          const lane = segLane[ev.id+startD]||0;
-          const color = getMemberColor(groupMembers,ev.attendees[0]);
-          const top  = startRect.top + BAR_TOP + lane*(BAR_H+BAR_GAP);
-          const left = startRect.left + 1;
-          const width= (endRect.left+endRect.w) - startRect.left - 2;
-          const isSegStart = startD===ev.date;
-          const isSegEnd   = endD===ev.end_date;
+          const startD=days[0],endD=days[days.length-1];
+          const startRect=cellRects[startD],endRect=cellRects[endD];
+          if(!startRect||!endRect)return null;
+          const lane=segLane[ev.id+startD]||0;
+          const color=getMemberColor(groupMembers,ev.attendees[0]);
+          const top=startRect.top+BAR_TOP+lane*(BAR_H+BAR_GAP);
+          const left=startRect.left+1;
+          const width=(endRect.left+endRect.w)-startRect.left-2;
+          const isSegStart=startD===ev.date;
+          const isSegEnd=endD===ev.end_date;
           return(
             <div key={ev.id+startD}
               onClick={e=>{e.stopPropagation();setSelectedDay(startD);}}
               style={{
-                position:"absolute", top, left, width,
-                height:BAR_H, borderRadius:`${isSegStart?4:0}px ${isSegEnd?4:0}px ${isSegEnd?4:0}px ${isSegStart?4:0}px`,
-                background:color, opacity:ev.completed?0.5:1,
+                position:"absolute",top,left,width,height:BAR_H,
+                borderRadius:`${isSegStart?4:0}px ${isSegEnd?4:0}px ${isSegEnd?4:0}px ${isSegStart?4:0}px`,
+                background:color,opacity:ev.completed?0.5:1,
                 display:"flex",alignItems:"center",
                 paddingLeft:isSegStart?5:2,
-                overflow:"hidden",cursor:"pointer",
-                zIndex:5,
+                overflow:"hidden",cursor:"pointer",zIndex:5,
               }}
               title={ev.title}>
               {isSegStart&&(
@@ -320,7 +432,6 @@ function CalendarGrid({calMonth,events,showCompleted,today,selectedDay,setSelect
   );
 }
 
-// ─── Main App ──────────────────────────────────────────────────────────────────
 export default function App(){
   useEffect(()=>{injectStyles();},[]);
 
@@ -349,7 +460,6 @@ export default function App(){
   const[notification,setNotification]=useState(null);
   const[globalErr,setGlobalErr]=useState(null);
   const[showLogoutConfirm,setShowLogoutConfirm]=useState(false);
-  const[deleteConfirmId,setDeleteConfirmId]=useState(null);
   const groupMenuRef=useRef(null);
 
   useEffect(()=>{
@@ -480,15 +590,11 @@ export default function App(){
     try{await dbUpdate("events",`id=eq.${id}`,{completed:!ev.completed});}
     catch{setEvents(evs=>evs.map(e=>e.id===id?{...e,completed:ev.completed}:e));}
   };
-  const confirmDelete=id=>setDeleteConfirmId(id);
-  const doDelete=async()=>{
-    const id=deleteConfirmId;
-    setDeleteConfirmId(null);
+  const deleteEvent=async id=>{
     setEvents(evs=>evs.filter(e=>e.id!==id));
     try{await dbDelete("events",`id=eq.${id}`);notify("Deleted.");}
     catch{notify("Delete failed.");await refreshEvents();}
   };
-  const deleteEvent=id=>confirmDelete(id);
   const toggleAttendee=id=>setEventForm(f=>({...f,attendees:f.attendees.includes(id)?f.attendees.filter(a=>a!==id):[...f.attendees,id]}));
 
   const sorted=[...events].sort((a,b)=>(a.date+(a.time||""))<(b.date+(b.time||""))?-1:1);
@@ -504,143 +610,183 @@ export default function App(){
   });
   const selectedDayEvents=selectedDay?events.filter(ev=>evSpansDays(ev,selectedDay)):[];
 
+  // ── Auth screen ──────────────────────────────────────────────────────────────
   if(!currentUser)return(
     <div style={{minHeight:"100vh",background:"var(--bg)",display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
-      <div className="plannr-card" style={{width:"100%",maxWidth:380,padding:"28px 24px"}}>
-        <h1 style={{margin:"0 0 4px",fontSize:26,fontWeight:800,color:"var(--text)"}}>📅 Plannr</h1>
-        <p style={{margin:"0 0 24px",color:"var(--text2)",fontSize:15}}>Your shared calendar, together.</p>
-        <div style={{display:"flex",gap:8,marginBottom:20}}>
-          {["login","signup"].map(m=><button key={m} onClick={()=>{setAuthMode(m);setAuthErr("");}} style={{flex:1,padding:"10px 0",borderRadius:10,border:"none",background:authMode===m?"var(--accent)":"var(--chip-bg)",color:authMode===m?"#fff":"var(--text)",fontWeight:700,cursor:"pointer",fontSize:15}}>{m==="login"?"Log In":"Sign Up"}</button>)}
+      <div style={{width:"100%",maxWidth:380}}>
+        {/* Brand */}
+        <div style={{textAlign:"center",marginBottom:32}}>
+          <div style={{width:52,height:52,borderRadius:14,background:"var(--accent)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,margin:"0 auto 14px",boxShadow:"0 4px 16px rgba(99,102,241,0.35)"}}>📅</div>
+          <h1 style={{fontSize:26,fontWeight:800,color:"var(--text)",letterSpacing:"-0.03em",marginBottom:4}}>Plannr</h1>
+          <p style={{color:"var(--text3)",fontSize:14}}>Your shared calendar, together.</p>
         </div>
-        {authMode==="signup"&&<><label className="plannr-input-label">Your name</label><input placeholder="e.g. Alex" value={authForm.name} onChange={e=>setAuthForm(f=>({...f,name:e.target.value}))}/></>}
-        <label className="plannr-input-label">Email address</label>
-        <input placeholder="you@email.com" type="email" autoCapitalize="none" value={authForm.email} onChange={e=>setAuthForm(f=>({...f,email:e.target.value}))}/>
-        <label className="plannr-input-label">Password</label>
-        <input placeholder="••••••••" type="password" value={authForm.password} onChange={e=>setAuthForm(f=>({...f,password:e.target.value}))} onKeyDown={e=>e.key==="Enter"&&handleAuth()}/>
-        {authErr&&<p style={{color:"var(--danger)",fontSize:14,margin:"0 0 12px"}}>{authErr}</p>}
-        <button className="plannr-btn-primary" onClick={handleAuth} disabled={loading} style={{opacity:loading?0.7:1}}>{loading?"Please wait…":authMode==="login"?"Log In":"Create Account"}</button>
+        <div className="plannr-card" style={{padding:"28px 24px"}}>
+          <div style={{display:"flex",gap:6,marginBottom:22,background:"var(--surface2)",borderRadius:10,padding:4}}>
+            {["login","signup"].map(m=>(
+              <button key={m} onClick={()=>{setAuthMode(m);setAuthErr("");}}
+                style={{flex:1,padding:"9px 0",borderRadius:8,border:"none",
+                  background:authMode===m?"var(--surface)":"transparent",
+                  color:authMode===m?"var(--text)":"var(--text3)",
+                  fontWeight:authMode===m?700:500,cursor:"pointer",fontSize:14,
+                  fontFamily:"'DM Sans',inherit",
+                  boxShadow:authMode===m?"0 1px 4px rgba(0,0,0,0.1)":"none",
+                  transition:"all 0.15s"
+                }}>{m==="login"?"Log In":"Sign Up"}</button>
+            ))}
+          </div>
+          {authMode==="signup"&&(
+            <><label className="plannr-input-label">Your name</label>
+            <input placeholder="e.g. Alex" value={authForm.name} onChange={e=>setAuthForm(f=>({...f,name:e.target.value}))}/></>
+          )}
+          <label className="plannr-input-label">Email address</label>
+          <input placeholder="you@email.com" type="email" autoCapitalize="none" value={authForm.email} onChange={e=>setAuthForm(f=>({...f,email:e.target.value}))}/>
+          <label className="plannr-input-label">Password</label>
+          <input placeholder="••••••••" type="password" value={authForm.password} onChange={e=>setAuthForm(f=>({...f,password:e.target.value}))} onKeyDown={e=>e.key==="Enter"&&handleAuth()}/>
+          {authErr&&<p style={{color:"var(--danger)",fontSize:13,margin:"0 0 12px",padding:"8px 12px",background:"rgba(239,68,68,0.08)",borderRadius:8}}>{authErr}</p>}
+          <button className="plannr-btn-primary" onClick={handleAuth} disabled={loading} style={{opacity:loading?0.7:1,marginTop:4}}>
+            {loading?"Please wait…":authMode==="login"?"Log In →":"Create Account →"}
+          </button>
+        </div>
       </div>
     </div>
   );
 
+  // ── No-group screen ──────────────────────────────────────────────────────────
   if(!currentGroup)return(
     <div style={{minHeight:"100vh",background:"var(--bg)"}}>
       {showLogoutConfirm&&<LogoutConfirm onConfirm={doLogout} onCancel={()=>setShowLogoutConfirm(false)}/>}
-      {deleteConfirmId&&(
-        <div className="plannr-confirm-overlay">
-          <div className="plannr-confirm-box">
-            <div style={{fontSize:36,marginBottom:12}}>🗑️</div>
-            <h3 style={{margin:"0 0 8px",fontSize:18,color:"var(--text)"}}>Delete this event?</h3>
-            <p style={{margin:"0 0 24px",fontSize:14,color:"var(--text2)"}}>This can't be undone.</p>
-            <div style={{display:"flex",gap:10}}>
-              <button onClick={()=>setDeleteConfirmId(null)} style={{flex:1,padding:"11px 0",borderRadius:10,border:"1.5px solid var(--border)",background:"transparent",color:"var(--text)",fontWeight:600,fontSize:15,cursor:"pointer"}}>Cancel</button>
-              <button onClick={doDelete} style={{flex:1,padding:"11px 0",borderRadius:10,border:"none",background:"var(--danger)",color:"#fff",fontWeight:700,fontSize:15,cursor:"pointer"}}>Delete</button>
-            </div>
-          </div>
-        </div>
-      )}
       <nav className="plannr-nav">
-        <span style={{fontWeight:800,fontSize:18,color:"var(--text)"}}>📅 Plannr</span>
+        <span className="logo-text">Plannr<span className="logo-dot">.</span></span>
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
           <span style={{color:"var(--text3)",fontSize:13}}>Hi, {currentUser.name}</span>
           <button className="plannr-btn-small" onClick={confirmLogout}>Log out</button>
         </div>
       </nav>
       <div style={{maxWidth:440,margin:"40px auto",padding:"0 16px"}}>
-        {globalErr&&<div style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:8,padding:"10px 14px",marginBottom:16,fontSize:13,color:"var(--danger)"}}>{globalErr}</div>}
-        <div className="plannr-card">
-          <h2 style={{margin:"0 0 16px",fontSize:18,color:"var(--text)"}}>Create a Group</h2>
+        {globalErr&&<div style={{background:"rgba(239,68,68,0.08)",border:"1px solid rgba(239,68,68,0.2)",borderRadius:10,padding:"10px 14px",marginBottom:16,fontSize:13,color:"var(--danger)"}}>{globalErr}</div>}
+        <div className="plannr-card" style={{marginBottom:14}}>
+          <h2 style={{margin:"0 0 16px",fontSize:16,fontWeight:700,color:"var(--text)"}}>Create a Group</h2>
           <label className="plannr-input-label">Group name</label>
           <input placeholder="e.g. Me & Jordan" value={createGroupName} onChange={e=>setCreateGroupName(e.target.value)}/>
           <button className="plannr-btn-primary" onClick={createGroup} disabled={loading} style={{opacity:loading?0.7:1}}>Create Group</button>
         </div>
-        <div className="plannr-card" style={{marginTop:16}}>
-          <h2 style={{margin:"0 0 16px",fontSize:18,color:"var(--text)"}}>Join a Group</h2>
+        <div className="plannr-card">
+          <h2 style={{margin:"0 0 16px",fontSize:16,fontWeight:700,color:"var(--text)"}}>Join a Group</h2>
           <label className="plannr-input-label">Join code</label>
           <input placeholder="e.g. AB12CD" value={joinCode} onChange={e=>setJoinCode(e.target.value)} autoCapitalize="characters"/>
-          {joinMsg&&<p style={{color:"var(--danger)",fontSize:14,margin:"0 0 8px"}}>{joinMsg}</p>}
-          <button className="plannr-btn-primary" onClick={handleJoinByCode} disabled={loading} style={{opacity:loading?0.7:1}}>Join</button>
+          {joinMsg&&<p style={{color:"var(--danger)",fontSize:13,margin:"0 0 8px"}}>{joinMsg}</p>}
+          <button className="plannr-btn-primary" onClick={handleJoinByCode} disabled={loading} style={{opacity:loading?0.7:1}}>Join Group</button>
         </div>
       </div>
     </div>
   );
 
+  // ── Main app ─────────────────────────────────────────────────────────────────
   return(
     <div style={{minHeight:"100vh",background:"var(--bg)"}}>
       {showLogoutConfirm&&<LogoutConfirm onConfirm={doLogout} onCancel={()=>setShowLogoutConfirm(false)}/>}
-      {notification&&<div style={{position:"fixed",top:16,left:"50%",transform:"translateX(-50%)",background:"#1e293b",color:"#fff",padding:"10px 20px",borderRadius:8,zIndex:999,fontSize:14,fontWeight:500,whiteSpace:"nowrap"}}>{notification}</div>}
+      {notification&&(
+        <div style={{
+          position:"fixed",top:16,left:"50%",transform:"translateX(-50%)",
+          background:"var(--text)",color:window.matchMedia("(prefers-color-scheme:dark)").matches?"var(--bg)":"#fff",
+          padding:"10px 18px",borderRadius:20,zIndex:999,fontSize:13,fontWeight:600,
+          whiteSpace:"nowrap",boxShadow:"0 4px 16px rgba(0,0,0,0.2)",letterSpacing:"0.01em",
+        }}>{notification}</div>
+      )}
 
+      {/* Top nav */}
       <nav className="plannr-nav">
-        <span style={{fontWeight:800,fontSize:16,color:"var(--text)"}}>📅 Plannr — {currentGroup.name}</span>
+        <div style={{display:"flex",alignItems:"center",gap:10,minWidth:0}}>
+          <div style={{width:30,height:30,borderRadius:8,background:"var(--accent)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,flexShrink:0}}>📅</div>
+          <div style={{minWidth:0}}>
+            <span className="logo-text" style={{fontSize:14}}>Plannr<span className="logo-dot">.</span></span>
+            <span style={{color:"var(--text3)",fontSize:12,marginLeft:6}}>{currentGroup.name}</span>
+          </div>
+        </div>
         <div ref={groupMenuRef} style={{display:"flex",gap:6,alignItems:"center",position:"relative"}}>
-          <button className="plannr-btn-small" onClick={()=>setShowGroupMenu(v=>!v)}>⚙</button>
+          <button className="plannr-btn-small" onClick={()=>setShowGroupMenu(v=>!v)} style={{fontSize:14,padding:"6px 10px"}}>⚙️</button>
           {showGroupMenu&&(
             <div className="plannr-group-menu">
-              <p className="plannr-section-title">Join Code</p>
-              <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:12}}>
+              <p className="plannr-section-title" style={{marginBottom:8}}>Join Code</p>
+              <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:16}}>
                 <span className="plannr-code">{currentGroup.code}</span>
-                <button className="plannr-btn-small" onClick={()=>{navigator.clipboard.writeText(currentGroup.code);notify("Code copied!");}}>Copy</button>
-              </div>
-              <p className="plannr-section-title">Share App Link</p>
-              <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:18}}>
-                <div style={{flex:1,background:"var(--surface2)",border:"1.5px solid var(--border)",borderRadius:8,padding:"6px 10px",fontSize:11,color:"var(--text3)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{window.location.href}</div>
-                <button className="plannr-btn-small" onClick={()=>{navigator.clipboard.writeText(window.location.href);notify("Link copied!");}}>Copy</button>
+                <button className="plannr-btn-small" onClick={()=>{navigator.clipboard.writeText(currentGroup.code);notify("Copied!");}}>Copy</button>
               </div>
               <p className="plannr-section-title">Invite by Email</p>
-              <label className="plannr-input-label">Their email</label>
-              <input placeholder="friend@email.com" value={inviteEmail} onChange={e=>setInviteEmail(e.target.value)} autoCapitalize="none"/>
-              {inviteMsg&&<p style={{color:"var(--danger)",fontSize:13,margin:"0 0 8px"}}>{inviteMsg}</p>}
-              <button className="plannr-btn-primary" onClick={handleInviteByEmail} disabled={loading} style={{marginBottom:16,opacity:loading?0.7:1}}>Add to Group</button>
+              <input placeholder="friend@email.com" value={inviteEmail} onChange={e=>setInviteEmail(e.target.value)} autoCapitalize="none" style={{marginBottom:8}}/>
+              {inviteMsg&&<p style={{color:"var(--danger)",fontSize:12,margin:"0 0 8px"}}>{inviteMsg}</p>}
+              <button className="plannr-btn-primary" onClick={handleInviteByEmail} disabled={loading} style={{marginBottom:16,opacity:loading?0.7:1,fontSize:13,padding:"10px 0"}}>Add to Group</button>
               <p className="plannr-section-title">Members</p>
               {groupMembers.map(m=>(
-                <div key={m.id} style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
-                  <div className="plannr-avatar" style={{background:getMemberColor(groupMembers,m.id)}}>{m.name[0].toUpperCase()}</div>
-                  <span style={{fontSize:14,color:"var(--text)"}}>{m.name}{m.id===currentUser.id?" (you)":""}</span>
+                <div key={m.id} style={{display:"flex",alignItems:"center",gap:9,marginBottom:9}}>
+                  <div className="plannr-avatar" style={{background:getMemberColor(groupMembers,m.id),width:28,height:28,fontSize:11}}>{m.name[0].toUpperCase()}</div>
+                  <span style={{fontSize:13,color:"var(--text)"}}>{m.name}{m.id===currentUser.id?" (you)":""}</span>
                 </div>
               ))}
-              <button className="plannr-btn-small" onClick={()=>{leaveGroup();setShowGroupMenu(false);}} style={{marginTop:12,color:"var(--danger)",borderColor:"var(--danger)",width:"100%"}}>Leave Group</button>
-              <p style={{margin:"16px 0 0",fontSize:11,color:"var(--text3)",textAlign:"center"}}>Plannr v2.1</p>
+              <div style={{borderTop:"1px solid var(--border)",paddingTop:14,marginTop:6}}>
+                <button className="plannr-btn-small" onClick={()=>{leaveGroup();setShowGroupMenu(false);}} style={{color:"var(--danger)",borderColor:"var(--danger)",width:"100%",fontSize:13}}>Leave Group</button>
+              </div>
             </div>
           )}
-          <button className="plannr-btn-small" onClick={confirmLogout}>Log out</button>
+          <button className="plannr-btn-small" onClick={confirmLogout} style={{fontSize:13}}>Log out</button>
         </div>
       </nav>
 
-      <div style={{background:"var(--nav-bg)",borderBottom:"1px solid var(--border)",padding:"0 16px",display:"flex"}}>
-        {["list","calendar"].map(v=>(
-          <button key={v} className="plannr-tab" onClick={()=>setView(v)} style={{borderBottom:view===v?"3px solid var(--accent)":"3px solid transparent",color:view===v?"var(--accent)":"var(--text3)",fontWeight:view===v?700:500}}>
-            {v==="list"?"📋 List":"📆 Calendar"}
+      {/* Tab bar */}
+      <div className="tab-bar">
+        {[{k:"list",label:"List"},{k:"calendar",label:"Calendar"}].map(({k,label})=>(
+          <button key={k} className="plannr-tab" onClick={()=>setView(k)}
+            style={{
+              borderBottom:view===k?"2px solid var(--accent)":"2px solid transparent",
+              color:view===k?"var(--accent)":"var(--text3)",
+              fontWeight:view===k?700:400,
+            }}>
+            {label}
           </button>
         ))}
-        <button onClick={()=>openAddEvent()} style={{marginLeft:"auto",padding:"8px 14px",margin:"6px 0 6px auto",borderRadius:8,border:"none",background:"var(--accent)",color:"#fff",fontWeight:700,cursor:"pointer",fontSize:14,alignSelf:"center"}}>+ Add</button>
+        <button className="add-btn" onClick={()=>openAddEvent()}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add Event
+        </button>
       </div>
 
-      <div style={{maxWidth:900,margin:"0 auto",padding:"16px 12px 80px"}}>
+      {/* Content */}
+      <div style={{maxWidth:900,margin:"0 auto",padding:"16px 14px 80px"}}>
+
+        {/* LIST VIEW */}
         {view==="list"&&(
           <div>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-              <h2 style={{margin:0,fontSize:16,color:"var(--text)"}}>Upcoming ({upcoming.length})</h2>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+              <div>
+                <span style={{fontWeight:700,fontSize:15,color:"var(--text)"}}>Upcoming</span>
+                <span style={{marginLeft:8,fontSize:13,color:"var(--text3)",fontFamily:"'DM Mono',monospace"}}>{upcoming.length}</span>
+              </div>
               <Toggle checked={showCompleted} onChange={setShowCompleted} label="Show past"/>
             </div>
-            {upcoming.length===0&&<div className="plannr-empty">No upcoming events. Tap + Add!</div>}
+            {upcoming.length===0&&<div className="plannr-empty">No upcoming events. Tap + Add Event!</div>}
             {upcoming.map(ev=><EventCard key={ev.id} ev={ev} members={groupMembers} onToggle={toggleComplete} onEdit={openEditEvent} onDelete={deleteEvent}/>)}
             {showCompleted&&past.length>0&&(
               <>
-                <h2 style={{margin:"24px 0 12px",fontSize:16,color:"var(--text3)"}}>Past ({past.length})</h2>
+                <div style={{margin:"24px 0 12px",display:"flex",alignItems:"center",gap:8}}>
+                  <span style={{fontWeight:600,fontSize:14,color:"var(--text3)"}}>Past</span>
+                  <span style={{fontSize:12,color:"var(--text3)",fontFamily:"'DM Mono',monospace"}}>{past.length}</span>
+                </div>
                 {past.map(ev=><EventCard key={ev.id} ev={ev} members={groupMembers} onToggle={toggleComplete} onEdit={openEditEvent} onDelete={deleteEvent}/>)}
               </>
             )}
           </div>
         )}
 
+        {/* CALENDAR VIEW */}
         {view==="calendar"&&(
           <div>
-            <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}>
-              <button className="plannr-btn-small" onClick={()=>setCalMonth(({y,m})=>m===0?{y:y-1,m:11}:{y,m:m-1})} style={{fontSize:18,padding:"6px 14px"}}>‹</button>
-              <span style={{fontWeight:700,fontSize:15,flex:1,textAlign:"center",color:"var(--text)"}}>{new Date(calMonth.y,calMonth.m).toLocaleDateString("en-US",{month:"long",year:"numeric"})}</span>
-              <button className="plannr-btn-small" onClick={()=>setCalMonth(({y,m})=>m===11?{y:y+1,m:0}:{y,m:m+1})} style={{fontSize:18,padding:"6px 14px"}}>›</button>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+              <button className="plannr-btn-small" onClick={()=>setCalMonth(({y,m})=>m===0?{y:y-1,m:11}:{y,m:m-1})} style={{fontSize:16,padding:"5px 12px"}}>‹</button>
+              <span style={{fontWeight:700,fontSize:14,flex:1,textAlign:"center",color:"var(--text)"}}>
+                {new Date(calMonth.y,calMonth.m).toLocaleDateString("en-US",{month:"long",year:"numeric"})}
+              </span>
+              <button className="plannr-btn-small" onClick={()=>setCalMonth(({y,m})=>m===11?{y:y+1,m:0}:{y,m:m+1})} style={{fontSize:16,padding:"5px 12px"}}>›</button>
             </div>
-
             <CalendarGrid
               calMonth={calMonth}
               events={events}
@@ -650,27 +796,29 @@ export default function App(){
               setSelectedDay={setSelectedDay}
               groupMembers={groupMembers}
             />
-
-            <div style={{margin:"12px 0"}}>
+            <div style={{margin:"12px 0 16px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               <Toggle checked={showCompleted} onChange={setShowCompleted} label="Show completed"/>
             </div>
 
             {selectedDay&&(
               <div style={{marginBottom:16}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-                  <h3 style={{margin:0,fontSize:15,color:"var(--text)"}}>{fmtDate(selectedDay)}</h3>
-                  <button onClick={()=>openAddEvent(selectedDay)} style={{padding:"7px 14px",background:"var(--accent)",color:"#fff",border:"none",borderRadius:8,fontWeight:600,cursor:"pointer",fontSize:14}}>+ Add</button>
+                  <h3 style={{margin:0,fontSize:14,fontWeight:700,color:"var(--text)"}}>{fmtDate(selectedDay)}</h3>
+                  <button onClick={()=>openAddEvent(selectedDay)} className="add-btn" style={{fontSize:12,padding:"6px 12px"}}>+ Add</button>
                 </div>
                 {selectedDayEvents.length===0
-                  ?<div className="plannr-empty">No events this day.</div>
+                  ?<div className="plannr-empty" style={{padding:"20px 0"}}>No events this day.</div>
                   :selectedDayEvents.map(ev=><EventCard key={ev.id} ev={ev} members={groupMembers} onToggle={toggleComplete} onEdit={openEditEvent} onDelete={deleteEvent}/>)}
               </div>
             )}
 
-            <div style={{paddingBottom:16}}>
-              <h3 style={{margin:"0 0 12px",fontSize:15,color:"var(--text)"}}>
-                {new Date(calMonth.y,calMonth.m).toLocaleDateString("en-US",{month:"long",year:"numeric"})} — All Events ({monthEvents.length})
-              </h3>
+            <div>
+              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
+                <span style={{fontWeight:700,fontSize:14,color:"var(--text)"}}>
+                  {new Date(calMonth.y,calMonth.m).toLocaleDateString("en-US",{month:"long"})}
+                </span>
+                <span style={{fontSize:12,color:"var(--text3)",fontFamily:"'DM Mono',monospace"}}>{monthEvents.length} events</span>
+              </div>
               {monthEvents.length===0
                 ?<div className="plannr-empty">No events this month.</div>
                 :monthEvents.map(ev=><EventCard key={ev.id} ev={ev} members={groupMembers} onToggle={toggleComplete} onEdit={openEditEvent} onDelete={deleteEvent}/>)}
@@ -679,23 +827,24 @@ export default function App(){
         )}
       </div>
 
+      {/* Add/Edit Event Modal */}
       {showAddEvent&&(
         <div className="plannr-modal-overlay" onClick={e=>e.target===e.currentTarget&&setShowAddEvent(false)}>
           <div className="plannr-modal">
-            <div style={{width:40,height:4,background:"var(--border)",borderRadius:4,margin:"0 auto 20px"}}/>
-            <h2 style={{margin:"0 0 20px",fontSize:19,color:"var(--text)"}}>{editEvent?"Edit Event":"New Event"}</h2>
+            <div style={{width:36,height:4,background:"var(--border)",borderRadius:4,margin:"0 auto 20px"}}/>
+            <h2 style={{margin:"0 0 20px",fontSize:18,color:"var(--text)",fontWeight:700,letterSpacing:"-0.02em"}}>{editEvent?"Edit Event":"New Event"}</h2>
             <label className="plannr-input-label">Event title *</label>
             <input placeholder="e.g. Family trip to Miami" value={eventForm.title} onChange={e=>setEventForm(f=>({...f,title:e.target.value}))}/>
-            <div style={{marginBottom:14}}>
+            <div style={{marginBottom:16}}>
               <Toggle checked={eventForm.multi} onChange={v=>setEventForm(f=>({...f,multi:v,end_date:""}))} label="Multi-day event"/>
             </div>
             {!eventForm.multi?(
               <><label className="plannr-input-label">Date *</label>
               <input type="date" value={eventForm.date} onChange={e=>setEventForm(f=>({...f,date:e.target.value}))}/></>
             ):(
-              <div style={{display:"flex",gap:10}}>
-                <div style={{flex:1}}><label className="plannr-input-label">Start date *</label><input type="date" value={eventForm.date} onChange={e=>setEventForm(f=>({...f,date:e.target.value}))}/></div>
-                <div style={{flex:1}}><label className="plannr-input-label">End date *</label><input type="date" value={eventForm.end_date} min={eventForm.date} onChange={e=>setEventForm(f=>({...f,end_date:e.target.value}))}/></div>
+              <div style={{display:"flex",gap:12}}>
+                <div style={{flex:1}}><label className="plannr-input-label">Start *</label><input type="date" value={eventForm.date} onChange={e=>setEventForm(f=>({...f,date:e.target.value}))}/></div>
+                <div style={{flex:1}}><label className="plannr-input-label">End *</label><input type="date" value={eventForm.end_date} min={eventForm.date} onChange={e=>setEventForm(f=>({...f,end_date:e.target.value}))}/></div>
               </div>
             )}
             <label className="plannr-input-label">Time (optional)</label>
@@ -704,12 +853,27 @@ export default function App(){
             <textarea placeholder="Any extra details…" value={eventForm.notes} onChange={e=>setEventForm(f=>({...f,notes:e.target.value}))} style={{minHeight:70,resize:"vertical"}}/>
             <label className="plannr-input-label">Attendees</label>
             <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:20}}>
-              {groupMembers.map(m=>{const sel=eventForm.attendees.includes(m.id),col=getMemberColor(groupMembers,m.id);return<button key={m.id} onClick={()=>toggleAttendee(m.id)} style={{padding:"8px 16px",borderRadius:20,border:`2px solid ${col}`,background:sel?col:"transparent",color:sel?"#fff":col,fontWeight:600,cursor:"pointer",fontSize:14}}>{m.name}</button>;})}
+              {groupMembers.map(m=>{
+                const sel=eventForm.attendees.includes(m.id),col=getMemberColor(groupMembers,m.id);
+                return(
+                  <button key={m.id} onClick={()=>toggleAttendee(m.id)} style={{
+                    padding:"7px 15px",borderRadius:20,
+                    border:`2px solid ${col}`,
+                    background:sel?col:"transparent",
+                    color:sel?"#fff":col,
+                    fontWeight:600,cursor:"pointer",fontSize:13,
+                    fontFamily:"'DM Sans',inherit",
+                    transition:"all 0.15s",
+                  }}>{m.name}</button>
+                );
+              })}
             </div>
-            {formErr&&<p style={{color:"var(--danger)",fontSize:14,margin:"0 0 12px"}}>{formErr}</p>}
+            {formErr&&<p style={{color:"var(--danger)",fontSize:13,margin:"0 0 12px",padding:"8px 12px",background:"rgba(239,68,68,0.08)",borderRadius:8}}>{formErr}</p>}
             <div style={{display:"flex",gap:10}}>
-              <button onClick={()=>setShowAddEvent(false)} style={{flex:1,padding:"12px 0",borderRadius:10,border:"1.5px solid var(--border)",background:"transparent",color:"var(--text)",cursor:"pointer",fontWeight:600,fontSize:15}}>Cancel</button>
-              <button onClick={saveEvent} disabled={loading} style={{flex:2,padding:"12px 0",borderRadius:10,border:"none",background:"var(--accent)",color:"#fff",fontWeight:700,cursor:"pointer",fontSize:15,opacity:loading?0.7:1}}>{loading?"Saving…":editEvent?"Save Changes":"Add Event"}</button>
+              <button onClick={()=>setShowAddEvent(false)} style={{flex:1,padding:"12px 0",borderRadius:10,border:"1.5px solid var(--border)",background:"transparent",color:"var(--text)",cursor:"pointer",fontWeight:600,fontSize:14,fontFamily:"'DM Sans',inherit"}}>Cancel</button>
+              <button onClick={saveEvent} disabled={loading} style={{flex:2,padding:"12px 0",borderRadius:10,border:"none",background:"var(--accent)",color:"#fff",fontWeight:700,cursor:"pointer",fontSize:14,fontFamily:"'DM Sans',inherit",opacity:loading?0.7:1}}>
+                {loading?"Saving…":editEvent?"Save Changes":"Add Event"}
+              </button>
             </div>
           </div>
         </div>
@@ -728,40 +892,44 @@ function EventCard({ev,members,onToggle,onEdit,onDelete}){
     {confirmingDelete&&(
       <div className="plannr-confirm-overlay">
         <div className="plannr-confirm-box">
-          <div style={{fontSize:36,marginBottom:12}}>🗑️</div>
-          <h3 style={{margin:"0 0 8px",fontSize:18,color:"var(--text)"}}>Delete this event?</h3>
-          <p style={{margin:"0 0 24px",fontSize:14,color:"var(--text2)"}}>This can't be undone.</p>
+          <div style={{fontSize:28,marginBottom:12}}>🗑️</div>
+          <h3 style={{margin:"0 0 8px",fontSize:17,color:"var(--text)",fontWeight:700}}>Delete this event?</h3>
+          <p style={{margin:"0 0 22px",fontSize:13,color:"var(--text2)"}}>This can't be undone.</p>
           <div style={{display:"flex",gap:10}}>
-            <button onClick={()=>setConfirmingDelete(false)} style={{flex:1,padding:"11px 0",borderRadius:10,border:"1.5px solid var(--border)",background:"transparent",color:"var(--text)",fontWeight:600,fontSize:15,cursor:"pointer"}}>Cancel</button>
-            <button onClick={()=>{setConfirmingDelete(false);onDelete(ev.id);}} style={{flex:1,padding:"11px 0",borderRadius:10,border:"none",background:"var(--danger)",color:"#fff",fontWeight:700,fontSize:15,cursor:"pointer"}}>Delete</button>
+            <button onClick={()=>setConfirmingDelete(false)} style={{flex:1,padding:"11px 0",borderRadius:10,border:"1.5px solid var(--border)",background:"transparent",color:"var(--text)",fontWeight:600,fontSize:14,cursor:"pointer",fontFamily:"'DM Sans',inherit"}}>Cancel</button>
+            <button onClick={()=>{setConfirmingDelete(false);onDelete(ev.id);}} style={{flex:1,padding:"11px 0",borderRadius:10,border:"none",background:"var(--danger)",color:"#fff",fontWeight:700,fontSize:14,cursor:"pointer",fontFamily:"'DM Sans',inherit"}}>Delete</button>
           </div>
         </div>
       </div>
     )}
-    <div className="plannr-event-card" style={{opacity:ev.completed?0.6:1,borderLeft:`4px solid ${color}`}}>
+    <div className="plannr-event-card" style={{opacity:ev.completed?0.55:1,borderLeft:`3px solid ${color}`}}>
       <div style={{display:"flex",alignItems:"flex-start",gap:10}}>
         <div style={{marginTop:2,flexShrink:0}}>
           <Checkbox checked={ev.completed} onChange={()=>onToggle(ev.id)}/>
         </div>
-        <div style={{flex:1,cursor:"pointer"}} onClick={()=>setExpanded(v=>!v)}>
-          <div style={{fontWeight:600,fontSize:15,textDecoration:ev.completed?"line-through":"none",color:ev.completed?"var(--text3)":"var(--text)"}}>
+        <div style={{flex:1,cursor:"pointer",minWidth:0}} onClick={()=>setExpanded(v=>!v)}>
+          <div style={{fontWeight:600,fontSize:14,textDecoration:ev.completed?"line-through":"none",color:ev.completed?"var(--text3)":"var(--text)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
             {ev.title}
             {multi&&<span className="multiday-badge">{getDateRange(ev.date,ev.end_date).length}d</span>}
           </div>
-          <div style={{fontSize:13,color:"var(--text2)",marginTop:3}}>
+          <div style={{fontSize:12,color:"var(--text2)",marginTop:3,fontWeight:400}}>
             {multi?`${fmtDate(ev.date)} → ${fmtDate(ev.end_date)}`:fmtDate(ev.date)}
             {ev.time?` · ${fmtTime(ev.time)}`:""}
           </div>
-          <div style={{display:"flex",gap:5,marginTop:6,flexWrap:"wrap"}}>
+          <div style={{display:"flex",gap:5,marginTop:7,flexWrap:"wrap"}}>
             {ev.attendees.map(aid=>{const m=members.find(x=>x.id===aid);return m?<span key={aid} className="plannr-tag" style={{background:getMemberColor(members,aid)}}>{m.name}</span>:null;})}
           </div>
         </div>
-        <div style={{display:"flex",gap:4,flexShrink:0}}>
-          <button onClick={()=>onEdit(ev)} style={{background:"none",border:"none",cursor:"pointer",color:"var(--text3)",padding:"4px 6px"}} title="Edit">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        <div style={{display:"flex",gap:2,flexShrink:0}}>
+          <button onClick={()=>onEdit(ev)} style={{background:"none",border:"none",cursor:"pointer",color:"var(--text3)",padding:"5px 7px",borderRadius:7,transition:"background 0.15s"}}
+            onMouseEnter={e=>e.currentTarget.style.background="var(--surface2)"}
+            onMouseLeave={e=>e.currentTarget.style.background="none"}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
           </button>
-          <button onClick={()=>setConfirmingDelete(true)} style={{background:"none",border:"none",cursor:"pointer",color:"var(--danger)",padding:"4px 6px"}} title="Delete">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+          <button onClick={()=>setConfirmingDelete(true)} style={{background:"none",border:"none",cursor:"pointer",color:"var(--danger)",padding:"5px 7px",borderRadius:7,opacity:0.7,transition:"opacity 0.15s,background 0.15s"}}
+            onMouseEnter={e=>{e.currentTarget.style.opacity="1";e.currentTarget.style.background="rgba(239,68,68,0.08)";}}
+            onMouseLeave={e=>{e.currentTarget.style.opacity="0.7";e.currentTarget.style.background="none";}}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
           </button>
         </div>
       </div>
