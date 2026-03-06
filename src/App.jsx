@@ -254,9 +254,9 @@ export default function App() {
   if (!currentUser) return (
     <div style={{ minHeight:"100vh", background:"#f1f5f9", display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"system-ui,sans-serif", padding:16 }}>
       <div style={{ background:"#fff", borderRadius:16, padding:"28px 24px", width:"100%", maxWidth:380, boxShadow:"0 2px 16px #0001" }}>
-        <h1 style={{ margin:"0 0 4px", fontSize:24, fontWeight:700 }}>📅 SharedCal</h1>
+        <h1 style={{ margin:"0 0 4px", fontSize:24, fontWeight:700 }}>📅 Plannr</h1>
         <p style={{ margin:"0 0 20px", color:"#64748b", fontSize:15 }}>Your shared calendar, together.</p>
-        <div style={{ background:"#f0fdf4", border:"1px solid #bbf7d0", borderRadius:8, padding:"8px 12px", marginBottom:18, fontSize:13, color:"#166534" }}>✓ Supabase connected — real-time sync active</div>
+
         <div style={{ display:"flex", gap:8, marginBottom:20 }}>
           {["login","signup"].map(m => <button key={m} onClick={() => { setAuthMode(m); setAuthErr(""); }} style={{ flex:1, padding:"10px 0", borderRadius:10, border:"none", background:authMode===m?"#4f46e5":"#f1f5f9", color:authMode===m?"#fff":"#374151", fontWeight:700, cursor:"pointer", fontSize:15 }}>{m==="login"?"Log In":"Sign Up"}</button>)}
         </div>
@@ -311,7 +311,7 @@ export default function App() {
       {notification && <div style={{ position:"fixed", top:16, left:"50%", transform:"translateX(-50%)", background:"#1e293b", color:"#fff", padding:"10px 20px", borderRadius:8, zIndex:999, fontSize:14, fontWeight:500, whiteSpace:"nowrap" }}>{notification}</div>}
 
       <nav style={S.nav}>
-        <span style={{ fontWeight:700, fontSize:16 }}>📅 {currentGroup.name}</span>
+        <span style={{ fontWeight:700, fontSize:16 }}>📅 Plannr — {currentGroup.name}</span>
         <div style={{ display:"flex", gap:6, alignItems:"center", position:"relative" }}>
           <button onClick={() => setShowGroupMenu(v=>!v)} style={S.smallBtn}>⚙</button>
           {showGroupMenu && (
