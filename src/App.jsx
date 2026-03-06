@@ -158,15 +158,7 @@ function Toggle({ checked, onChange, label }) {
 }
 
 // Reusable custom checkbox
-function Checkbox({ checked, onChange }) {
-  return (
-    <span className={`plannr-checkbox${checked?" checked":""}`} onClick={onChange}>
-      <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-        <polyline points="2,6 5,9 10,3" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-      </svg>
-    </span>
-  );
-}
+
 
 // Logout confirm dialog
 function LogoutConfirm({ onConfirm, onCancel }) {
