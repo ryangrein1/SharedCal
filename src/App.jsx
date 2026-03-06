@@ -720,9 +720,24 @@ export default function App(){
 
 function EventCard({ev,members,onToggle,onEdit,onDelete}){
   const[expanded,setExpanded]=useState(false);
+  const[confirmingDelete,setConfirmingDelete]=useState(false);
   const color=getMemberColor(members,ev.attendees[0]);
   const multi=isMultiDay(ev);
   return(
+    <>
+    {confirmingDelete&&(
+      <div className="plannr-confirm-overlay">
+        <div className="plannr-confirm-box">
+          <div style={{fontSize:36,marginBottom:12}}>🗑️</div>
+          <h3 style={{margin:"0 0 8px",fontSize:18,color:"var(--text)"}}>Delete this event?</h3>
+          <p style={{margin:"0 0 24px",fontSize:14,color:"var(--text2)"}}>This can't be undone.</p>
+          <div style={{display:"flex",gap:10}}>
+            <button onClick={()=>setConfirmingDelete(false)} style={{flex:1,padding:"11px 0",borderRadius:10,border:"1.5px solid var(--border)",background:"transparent",color:"var(--text)",fontWeight:600,fontSize:15,cursor:"pointer"}}>Cancel</button>
+            <button onClick={()=>{setConfirmingDelete(false);onDelete(ev.id);}} style={{flex:1,padding:"11px 0",borderRadius:10,border:"none",background:"var(--danger)",color:"#fff",fontWeight:700,fontSize:15,cursor:"pointer"}}>Delete</button>
+          </div>
+        </div>
+      </div>
+    )}
     <div className="plannr-event-card" style={{opacity:ev.completed?0.6:1,borderLeft:`4px solid ${color}`}}>
       <div style={{display:"flex",alignItems:"flex-start",gap:10}}>
         <div style={{marginTop:2,flexShrink:0}}>
@@ -745,12 +760,13 @@ function EventCard({ev,members,onToggle,onEdit,onDelete}){
           <button onClick={()=>onEdit(ev)} style={{background:"none",border:"none",cursor:"pointer",color:"var(--text3)",padding:"4px 6px"}} title="Edit">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
           </button>
-          <button onClick={()=>onDelete(ev.id)} style={{background:"none",border:"none",cursor:"pointer",color:"var(--danger)",padding:"4px 6px"}} title="Delete">
+          <button onClick={()=>setConfirmingDelete(true)} style={{background:"none",border:"none",cursor:"pointer",color:"var(--danger)",padding:"4px 6px"}} title="Delete">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
           </button>
         </div>
       </div>
       {expanded&&ev.notes&&<div className="plannr-notes-box">{ev.notes}</div>}
     </div>
+    </>
   );
 }
