@@ -146,10 +146,11 @@ const injectStyles = () => {
 // Reusable toggle switch
 function Toggle({ checked, onChange, label }) {
   return (
-    <div className="plannr-toggle-wrap" onClick={() => onChange(!checked)} style={{cursor:"pointer",userSelect:"none",display:"flex",alignItems:"center",gap:10}}>
+    <div style={{cursor:"pointer",userSelect:"none",display:"inline-flex",alignItems:"center",gap:10,WebkitTapHighlightColor:"transparent"}}
+      onPointerDown={e => { e.preventDefault(); onChange(!checked); }}>
       <div style={{position:"relative",width:44,height:26,flexShrink:0}}>
-        <div style={{position:"absolute",inset:0,borderRadius:13,background:checked?"var(--toggle-on)":"var(--toggle-off)",transition:"background 0.2s"}} />
-        <div style={{position:"absolute",top:3,left:3,width:20,height:20,borderRadius:"50%",background:"#fff",boxShadow:"0 1px 4px rgba(0,0,0,0.2)",transition:"transform 0.2s",transform:checked?"translateX(18px)":"translateX(0)"}} />
+        <div style={{position:"absolute",inset:0,borderRadius:13,background:checked?"#4f46e5":"#cbd5e1",transition:"background 0.2s"}} />
+        <div style={{position:"absolute",top:3,left:checked?21:3,width:20,height:20,borderRadius:"50%",background:"#fff",boxShadow:"0 1px 4px rgba(0,0,0,0.25)",transition:"left 0.2s"}} />
       </div>
       <span style={{fontSize:14,color:"var(--text2)"}}>{label}</span>
     </div>
@@ -456,6 +457,7 @@ export default function App() {
                 </div>
               ))}
               <button className="plannr-btn-small" onClick={()=>{leaveGroup();setShowGroupMenu(false);}} style={{marginTop:12,color:"var(--danger)",borderColor:"var(--danger)",width:"100%"}}>Leave Group</button>
+              <p style={{margin:"16px 0 0",fontSize:11,color:"var(--text3)",textAlign:"center"}}>Plannr v1.7</p>
             </div>
           )}
           <button className="plannr-btn-small" onClick={confirmLogout}>Log out</button>
