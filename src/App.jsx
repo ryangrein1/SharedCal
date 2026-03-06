@@ -71,7 +71,7 @@ const injectStyles=()=>{
     .plannr-nav{background:var(--nav-bg);border-bottom:1px solid var(--border);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:8px;position:sticky;top:0;z-index:50;}
     .plannr-cal-grid{background:var(--surface);border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08);}
     .plannr-cal-header-cell{padding:8px 0;text-align:center;font-size:12px;font-weight:600;color:var(--text3);border-bottom:1px solid var(--border2);}
-    .plannr-cal-cell{min-height:72px;padding:3px 0;border-right:1px solid var(--border2);border-bottom:1px solid var(--border2);cursor:pointer;position:relative;overflow:visible;}
+    .plannr-cal-cell{height:80px;padding:3px 0;border-right:1px solid var(--border2);border-bottom:1px solid var(--border2);cursor:pointer;position:relative;overflow:hidden;}
     .plannr-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:flex-end;justify-content:center;z-index:200;}
     .plannr-modal{background:var(--modal-bg);border-radius:20px 20px 0 0;padding:24px 20px 36px;width:100%;max-width:500px;box-shadow:0 -4px 32px rgba(0,0,0,0.2);max-height:90vh;overflow-y:auto;}
     .plannr-group-menu{position:absolute;right:0;top:44px;background:var(--surface);border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,0.2);padding:20px;width:280px;z-index:100;border:1px solid var(--border);}
@@ -137,134 +137,91 @@ function LogoutConfirm({onConfirm,onCancel}){
   );
 }
 
-// ── Calendar grid with proper multi-day spanning ──────────────────────────────
-function CalendarGrid({calMonth,events,showCompleted,todayStr,selectedDay,setSelectedDay,groupMembers,openAddEvent}){
-  const containerRef=useRef(null);
-  const [cellWidth,setCellWidth]=useState(0);
-  const [cellPositions,setCellPositions]=useState({});
-
+// ── Calendar grid ─────────────────────────────────────────────────────────────
+// Uses a pure CSS grid approach: each cell is fixed height, events are
+// rendered inside each cell so nothing can stretch the cell width or height.
+function CalendarGrid({calMonth,events,showCompleted,todayStr,selectedDay,setSelectedDay,groupMembers}){
   const daysInMonth=(y,m)=>new Date(y,m+1,0).getDate();
   const firstDay=(y,m)=>new Date(y,m,1).getDay();
   const numDays=daysInMonth(calMonth.y,calMonth.m);
   const fdo=firstDay(calMonth.y,calMonth.m);
+  const ds=(day)=>`${calMonth.y}-${String(calMonth.m+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
 
-  const dateStr=(day)=>`${calMonth.y}-${String(calMonth.m+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
-
-  // Measure cell widths after render
-  useEffect(()=>{
-    if(!containerRef.current)return;
-    const measure=()=>{
-      const cells=containerRef.current.querySelectorAll(".cal-cell-measure");
-      const pos={};
-      cells.forEach(cell=>{
-        const d=cell.getAttribute("data-date");
-        const rect=cell.getBoundingClientRect();
-        const parentRect=containerRef.current.getBoundingClientRect();
-        pos[d]={left:rect.left-parentRect.left,top:rect.top-parentRect.top,width:rect.width,height:rect.height};
+  // Build per-day event list: for multi-day events mark position
+  // position: "start" | "mid" | "end" | "single"
+  const dayMap={};
+  const addDay=(date,ev,pos)=>{
+    if(!dayMap[date])dayMap[date]=[];
+    dayMap[date].push({ev,pos});
+  };
+  const filtered=events.filter(e=>showCompleted||!e.completed);
+  filtered.forEach(ev=>{
+    if(isMultiDay(ev)){
+      const dates=getDateRange(ev.date,ev.end_date);
+      dates.forEach((d,i)=>{
+        const pos=dates.length===1?"single":i===0?"start":i===dates.length-1?"end":"mid";
+        addDay(d,ev,pos);
       });
-      setCellPositions(pos);
-      if(cells[0])setCellWidth(cells[0].getBoundingClientRect().width);
-    };
-    measure();
-    const ro=new ResizeObserver(measure);
-    ro.observe(containerRef.current);
-    return()=>ro.disconnect();
-  },[calMonth,events]);
-
-  // Separate single-day and multi-day events
-  const singleByDay={};
-  const multiEvs=[];
-  events.forEach(ev=>{
-    if(showCompleted?false:ev.completed)return;
-    if(isMultiDay(ev)){multiEvs.push(ev);}
-    else{if(!singleByDay[ev.date])singleByDay[ev.date]=[];singleByDay[ev.date].push(ev);}
-  });
-
-  // Build spanning rows for multi-day events
-  // Each multi-day event may need to wrap across weeks
-  const spanRows=[];
-  multiEvs.forEach(ev=>{
-    const color=getMemberColor(groupMembers,ev.attendees[0]);
-    // Split into week segments
-    const allDates=getDateRange(ev.date,ev.end_date);
-    // group by week row
-    const weeks=[];let cur=[];
-    allDates.forEach(d=>{
-      const[y,mo,day]=d.split("-").map(Number);
-      const dow=new Date(y,mo-1,day).getDay();
-      cur.push(d);
-      if(dow===6||d===allDates[allDates.length-1]){weeks.push([...cur]);cur=[];}
-    });
-    weeks.forEach((wdates,wi)=>{
-      const startD=wdates[0],endD=wdates[wdates.length-1];
-      spanRows.push({ev,startD,endD,color,showLabel:wi===0});
-    });
-  });
-
-  // assign vertical lanes per week to avoid overlap
-  const laneMap={};// key: weekStartSunday -> array of {end, lane}
-  const evLanes={};// evId+startD -> lane
-  spanRows.forEach(row=>{
-    const[y,mo,day]=row.startD.split("-").map(Number);
-    const dow=new Date(y,mo-1,day).getDay();
-    const wk=row.startD.slice(0,8)+String(day-dow).padStart(2,"0");
-    if(!laneMap[wk])laneMap[wk]=[];
-    const used=laneMap[wk];
-    let lane=0;
-    while(used.some(u=>u.lane===lane&&u.end>=row.startD))lane++;
-    used.push({end:row.endD,lane});
-    evLanes[row.ev.id+row.startD]=lane;
+    } else {
+      addDay(ev.date,ev,"single");
+    }
   });
 
   return(
     <div className="plannr-cal-grid">
+      {/* Day headers */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)"}}>
         {["S","M","T","W","T","F","S"].map((d,i)=><div key={i} className="plannr-cal-header-cell">{d}</div>)}
       </div>
-      <div ref={containerRef} style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",position:"relative"}}>
+      {/* Day cells — fixed height via CSS, overflow hidden */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)"}}>
         {Array.from({length:fdo}).map((_,i)=>(
           <div key={`p${i}`} className="plannr-cal-cell" style={{background:"var(--pad-bg)",cursor:"default"}}/>
         ))}
         {Array.from({length:numDays}).map((_,i)=>{
           const day=i+1;
-          const ds=dateStr(day);
-          const isToday=ds===todayStr,isSel=selectedDay===ds;
-          const singles=(singleByDay[ds]||[]);
+          const date=ds(day);
+          const isToday=date===todayStr,isSel=selectedDay===date;
+          const items=dayMap[date]||[];
           return(
-            <div key={day} data-date={ds} className="plannr-cal-cell cal-cell-measure"
-              onClick={()=>setSelectedDay(isSel?null:ds)}
+            <div key={day} className="plannr-cal-cell"
+              onClick={()=>setSelectedDay(isSel?null:date)}
               style={{background:isSel?"var(--sel-bg)":isToday?"var(--today-bg)":"transparent"}}>
-              <div style={{width:22,height:22,borderRadius:"50%",background:isToday?"var(--accent)":"transparent",color:isToday?"#fff":"var(--text)",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:isToday?700:400,fontSize:12,margin:"0 auto 2px"}}>{day}</div>
-              {/* Reserve space for multi-day lanes */}
-              {[0,1,2].map(lane=><div key={lane} style={{height:17,marginBottom:1}}/>)}
-              {/* Single-day chips */}
-              {singles.slice(0,1).map(ev=>(
-                <div key={ev.id} className="cal-chip-single" style={{background:getMemberColor(groupMembers,ev.attendees[0]),opacity:ev.completed?0.5:1}}>{ev.title}</div>
-              ))}
-              {singles.length>1&&<div style={{fontSize:9,color:"var(--text3)",textAlign:"center",paddingLeft:2}}>+{singles.length-1}</div>}
-            </div>
-          );
-        })}
-
-        {/* Render spanning multi-day bars absolutely */}
-        {spanRows.map(({ev,startD,endD,color,showLabel})=>{
-          const startPos=cellPositions[startD];
-          const endPos=cellPositions[endD];
-          if(!startPos||!endPos)return null;
-          const lane=evLanes[ev.id+startD]||0;
-          const LANE_TOP=28; // below day number
-          const LANE_H=17;
-          const LANE_GAP=1;
-          const top=startPos.top+LANE_TOP+(lane*(LANE_H+LANE_GAP));
-          const left=startPos.left+2;
-          const right=endPos.left+endPos.width-2;
-          const width=right-left;
-          return(
-            <div key={ev.id+startD} className="cal-span-row"
-              style={{top,left,width,background:color,opacity:ev.completed?0.5:1}}
-              title={ev.title}
-              onClick={e=>{e.stopPropagation();setSelectedDay(startD);}}>
-              {showLabel&&<span>{ev.title}</span>}
+              {/* Day number */}
+              <div style={{display:"flex",justifyContent:"center",marginBottom:2}}>
+                <div style={{width:20,height:20,borderRadius:"50%",background:isToday?"var(--accent)":"transparent",color:isToday?"#fff":"var(--text)",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:isToday?700:400,fontSize:11,flexShrink:0}}>{day}</div>
+              </div>
+              {/* Event chips — max 3 visible */}
+              {items.slice(0,3).map(({ev,pos},idx)=>{
+                const color=getMemberColor(groupMembers,ev.attendees[0]);
+                const isStart=pos==="start"||pos==="single";
+                const isEnd=pos==="end"||pos==="single";
+                const isMid=pos==="mid";
+                return(
+                  <div key={ev.id+pos+idx} style={{
+                    fontSize:8,
+                    lineHeight:"1.3",
+                    color:"#fff",
+                    background:color,
+                    opacity:ev.completed?0.5:1,
+                    marginBottom:1,
+                    padding:"1px 3px",
+                    // rounded only on start/end
+                    borderRadius:`${isStart?3:0}px ${isEnd?3:0}px ${isEnd?3:0}px ${isStart?3:0}px`,
+                    // bleed into borders for mid/end segments
+                    marginLeft:isMid||pos==="end"?-1:1,
+                    marginRight:isMid||pos==="start"?-1:1,
+                    overflow:"hidden",
+                    // only show text on start
+                    whiteSpace: isStart?"normal":"nowrap",
+                    wordBreak: isStart?"break-word":"normal",
+                    minHeight:10,
+                  }}>
+                    {isStart?(ev.completed?"✓ ":"")+ev.title:""}
+                  </div>
+                );
+              })}
+              {items.length>3&&<div style={{fontSize:8,color:"var(--text3)",textAlign:"center"}}>+{items.length-3}</div>}
             </div>
           );
         })}
