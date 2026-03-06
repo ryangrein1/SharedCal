@@ -146,14 +146,13 @@ const injectStyles = () => {
 // Reusable toggle switch
 function Toggle({ checked, onChange, label }) {
   return (
-    <label className="plannr-toggle-wrap" onClick={() => onChange(!checked)}>
-      <span className="plannr-toggle">
-        <input type="checkbox" checked={checked} onChange={() => {}} />
-        <span className="plannr-toggle-track" />
-        <span className="plannr-toggle-thumb" />
-      </span>
-      <span style={{ fontSize:14, color:"var(--text2)" }}>{label}</span>
-    </label>
+    <div className="plannr-toggle-wrap" onClick={() => onChange(!checked)} style={{cursor:"pointer",userSelect:"none",display:"flex",alignItems:"center",gap:10}}>
+      <div style={{position:"relative",width:44,height:26,flexShrink:0}}>
+        <div style={{position:"absolute",inset:0,borderRadius:13,background:checked?"var(--toggle-on)":"var(--toggle-off)",transition:"background 0.2s"}} />
+        <div style={{position:"absolute",top:3,left:3,width:20,height:20,borderRadius:"50%",background:"#fff",boxShadow:"0 1px 4px rgba(0,0,0,0.2)",transition:"transform 0.2s",transform:checked?"translateX(18px)":"translateX(0)"}} />
+      </div>
+      <span style={{fontSize:14,color:"var(--text2)"}}>{label}</span>
+    </div>
   );
 }
 
