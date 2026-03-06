@@ -525,6 +525,7 @@ export default function App(){
 
   if(!currentGroup)return(
     <div style={{minHeight:"100vh",background:"var(--bg)"}}>
+      {showLogoutConfirm&&<LogoutConfirm onConfirm={doLogout} onCancel={()=>setShowLogoutConfirm(false)}/>}
       {deleteConfirmId&&(
         <div className="plannr-confirm-overlay">
           <div className="plannr-confirm-box">
@@ -538,7 +539,6 @@ export default function App(){
           </div>
         </div>
       )}
-      {showLogoutConfirm&&<LogoutConfirm onConfirm={doLogout} onCancel={()=>setShowLogoutConfirm(false)}/>}
       <nav className="plannr-nav">
         <span style={{fontWeight:800,fontSize:18,color:"var(--text)"}}>📅 Plannr</span>
         <div style={{display:"flex",gap:8,alignItems:"center"}}>
@@ -577,9 +577,14 @@ export default function App(){
           {showGroupMenu&&(
             <div className="plannr-group-menu">
               <p className="plannr-section-title">Join Code</p>
-              <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:18}}>
+              <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:12}}>
                 <span className="plannr-code">{currentGroup.code}</span>
-                <button className="plannr-btn-small" onClick={()=>{navigator.clipboard.writeText(currentGroup.code);notify("Copied!");}}>Copy</button>
+                <button className="plannr-btn-small" onClick={()=>{navigator.clipboard.writeText(currentGroup.code);notify("Code copied!");}}>Copy</button>
+              </div>
+              <p className="plannr-section-title">Share App Link</p>
+              <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:18}}>
+                <div style={{flex:1,background:"var(--surface2)",border:"1.5px solid var(--border)",borderRadius:8,padding:"6px 10px",fontSize:11,color:"var(--text3)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{window.location.href}</div>
+                <button className="plannr-btn-small" onClick={()=>{navigator.clipboard.writeText(window.location.href);notify("Link copied!");}}>Copy</button>
               </div>
               <p className="plannr-section-title">Invite by Email</p>
               <label className="plannr-input-label">Their email</label>
@@ -594,7 +599,7 @@ export default function App(){
                 </div>
               ))}
               <button className="plannr-btn-small" onClick={()=>{leaveGroup();setShowGroupMenu(false);}} style={{marginTop:12,color:"var(--danger)",borderColor:"var(--danger)",width:"100%"}}>Leave Group</button>
-              <p style={{margin:"16px 0 0",fontSize:11,color:"var(--text3)",textAlign:"center"}}>Plannr v2.0</p>
+              <p style={{margin:"16px 0 0",fontSize:11,color:"var(--text3)",textAlign:"center"}}>Plannr v2.1</p>
             </div>
           )}
           <button className="plannr-btn-small" onClick={confirmLogout}>Log out</button>
