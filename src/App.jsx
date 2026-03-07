@@ -983,6 +983,7 @@ function EventCard({ev,members,onToggle,onDelete,onEdit}){
         </div>
       </div>
     )}
+    {confirmingDelete&&(
       <div className="plannr-confirm-overlay">
         <div className="plannr-confirm-box">
           <div style={{fontSize:28,marginBottom:12}}>🗑️</div>
