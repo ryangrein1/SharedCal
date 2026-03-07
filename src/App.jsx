@@ -461,7 +461,7 @@ export default function App(){
   const[globalErr,setGlobalErr]=useState(null);
   const[showLogoutConfirm,setShowLogoutConfirm]=useState(false);
   const[calendarFilter,setCalendarFilter]=useState([]);
-  const[listFilter,setListFilter]=useState("month");
+  const[listFilter,setListFilter]=useState("7days");
   const groupMenuRef=useRef(null);
 
   useEffect(()=>{
@@ -603,10 +603,13 @@ export default function App(){
   const visible=sorted.filter(e=>showCompleted||!e.completed);
   const next7=new Date();next7.setDate(next7.getDate()+7);const next7Str=next7.toISOString().slice(0,10);
   const thisMonthStr=`${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,"0")}`;
+  const nextMonthDate=new Date();nextMonthDate.setMonth(nextMonthDate.getMonth()+1);
+  const nextMonthStr=`${nextMonthDate.getFullYear()}-${String(nextMonthDate.getMonth()+1).padStart(2,"0")}`;
   const upcoming=visible.filter(e=>{
     if(e.date<todayStr())return false;
     if(listFilter==="7days")return e.date<=next7Str;
     if(listFilter==="month")return e.date.startsWith(thisMonthStr)||(isMultiDay(e)&&e.end_date>=thisMonthStr+"-01"&&e.date<=thisMonthStr+"-31");
+    if(listFilter==="nextmonth")return e.date.startsWith(nextMonthStr)||(isMultiDay(e)&&e.end_date>=nextMonthStr+"-01"&&e.date<=nextMonthStr+"-31");
     return true;
   });
   const past=visible.filter(e=>e.date<todayStr());
@@ -727,7 +730,7 @@ export default function App(){
                 <p style={{fontSize:12,color:"var(--text2)",margin:"0 0 10px",lineHeight:1.5}}>Share this link so others can sign up and join your group:</p>
                 <div style={{background:"var(--code-bg)",border:"1px solid var(--border)",borderRadius:8,padding:"8px 10px",fontSize:11,color:"var(--text3)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",marginBottom:10,fontFamily:"'DM Mono',monospace"}}>{window.location.origin}</div>
                 <div style={{display:"flex",gap:8}}>
-                  <button className="plannr-btn-small" style={{flex:1,textAlign:"center",fontSize:12}} onClick={()=>{navigator.clipboard.writeText(window.location.origin);notify("Link copied!");}}>📋 Copy Link</button>
+                  <button className="plannr-btn-small" style={{flex:1,textAlign:"center",fontSize:12}} onClick={()=>{navigator.clipboard.writeText(window.location.origin);notify("Link copied!");}}>Copy Link</button>
                   <button className="plannr-btn-small" style={{flex:1,textAlign:"center",fontSize:12}} onClick={()=>{if(navigator.share){navigator.share({title:"Plannr",text:`Join me on Plannr! Use code: ${currentGroup.code}`,url:window.location.origin});}else{navigator.clipboard.writeText(window.location.origin);notify("Link copied!");}}}>↗ Share</button>
                 </div>
               </div>
@@ -784,12 +787,12 @@ export default function App(){
             </div>
             {/* Time range filter */}
             <div style={{display:"flex",gap:6,marginBottom:16,background:"var(--surface2)",borderRadius:10,padding:4,border:"1px solid var(--border)"}}>
-              {[{k:"7days",label:"Next 7 Days"},{k:"month",label:"This Month"},{k:"all",label:"All"}].map(({k,label})=>(
+              {[{k:"7days",label:"7 Days"},{k:"month",label:"This Month"},{k:"nextmonth",label:"Next Month"},{k:"all",label:"All"}].map(({k,label})=>(
                 <button key={k} onClick={()=>setListFilter(k)} style={{
                   flex:1,padding:"7px 0",borderRadius:8,border:"none",
                   background:listFilter===k?"var(--surface)":"transparent",
                   color:listFilter===k?"var(--text)":"var(--text3)",
-                  fontWeight:listFilter===k?700:400,cursor:"pointer",fontSize:12,
+                  fontWeight:listFilter===k?700:400,cursor:"pointer",fontSize:11,
                   fontFamily:"'DM Sans',inherit",
                   boxShadow:listFilter===k?"0 1px 4px rgba(0,0,0,0.1)":"none",
                   transition:"all 0.15s",
