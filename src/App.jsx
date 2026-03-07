@@ -944,6 +944,13 @@ function EventCard({ev,members,onToggle,onEdit,onDelete}){
   const[confirmingDelete,setConfirmingDelete]=useState(false);
   const color=getMemberColor(members,ev.attendees[0]);
   const multi=isMultiDay(ev);
+
+  // Parse date parts for the date box
+  const[y,mo,d]=ev.date.split("-").map(Number);
+  const dateObj=new Date(y,mo-1,d);
+  const weekday=dateObj.toLocaleDateString("en-US",{weekday:"short"});
+  const monthDay=dateObj.toLocaleDateString("en-US",{month:"short",day:"numeric"});
+
   return(
     <>
     {confirmingDelete&&(
@@ -960,43 +967,50 @@ function EventCard({ev,members,onToggle,onEdit,onDelete}){
       </div>
     )}
     <div className="plannr-event-card" style={{opacity:ev.completed?0.55:1,borderLeft:`3px solid ${color}`}}>
-      <div style={{display:"flex",alignItems:"flex-start",gap:10}}>
+      <div style={{display:"flex",alignItems:"stretch",gap:10}}>
 
         {/* Checkbox */}
-        <div style={{marginTop:3,flexShrink:0}}>
+        <div style={{display:"flex",alignItems:"flex-start",paddingTop:3,flexShrink:0}}>
           <Checkbox checked={ev.completed} onChange={()=>onToggle(ev.id)}/>
         </div>
 
-        {/* Main content — all left-aligned after checkbox */}
-        <div style={{flex:1,minWidth:0}}>
+        {/* Date box */}
+        <div style={{
+          flexShrink:0,width:52,
+          background:color,
+          borderRadius:9,
+          display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
+          padding:"6px 4px",
+          gap:1,
+        }}>
+          <span style={{fontSize:10,fontWeight:700,color:"rgba(255,255,255,0.85)",textTransform:"uppercase",letterSpacing:"0.06em",lineHeight:1}}>
+            {multi?"Multi":weekday}
+          </span>
+          <span style={{fontSize:12,fontWeight:800,color:"#fff",lineHeight:1.2,textAlign:"center"}}>
+            {multi?`${getDateRange(ev.date,ev.end_date).length}d`:monthDay}
+          </span>
+          {ev.time&&!multi&&(
+            <span style={{fontSize:9,color:"rgba(255,255,255,0.75)",marginTop:2,lineHeight:1}}>{fmtTime(ev.time)}</span>
+          )}
+        </div>
 
-          {/* Date — prominent, on its own line */}
-          <div style={{fontSize:11,fontWeight:700,color:color,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:3}}>
-            {multi?`${fmtDate(ev.date)} → ${fmtDate(ev.end_date)}`:fmtDate(ev.date)}
-            {ev.time?<span style={{fontWeight:500,color:"var(--text3)",marginLeft:6,textTransform:"none",letterSpacing:0}}>{fmtTime(ev.time)}</span>:""}
-            {multi&&<span className="multiday-badge">{getDateRange(ev.date,ev.end_date).length}d</span>}
-          </div>
-
-          {/* Event title */}
-          <div style={{fontWeight:700,fontSize:15,textDecoration:ev.completed?"line-through":"none",color:ev.completed?"var(--text3)":"var(--text)",marginBottom:5,lineHeight:1.3}}>
+        {/* Event details — title, attendees, notes all left-aligned */}
+        <div style={{flex:1,minWidth:0,display:"flex",flexDirection:"column",gap:4,justifyContent:"center"}}>
+          <div style={{fontWeight:700,fontSize:15,textDecoration:ev.completed?"line-through":"none",color:ev.completed?"var(--text3)":"var(--text)",lineHeight:1.3}}>
             {ev.title}
           </div>
-
-          {/* Attendee tags */}
-          <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:ev.notes?6:0}}>
+          <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
             {ev.attendees.map(aid=>{const m=members.find(x=>x.id===aid);return m?<span key={aid} className="plannr-tag" style={{background:getMemberColor(members,aid)}}>{m.name}</span>:null;})}
           </div>
-
-          {/* Notes — always visible if present */}
           {ev.notes&&(
-            <div style={{fontSize:12,color:"var(--text2)",background:"var(--surface2)",borderRadius:7,padding:"6px 10px",marginTop:4,lineHeight:1.5,border:"1px solid var(--border)"}}>
+            <div style={{fontSize:12,color:"var(--text2)",lineHeight:1.5,background:"var(--surface2)",borderRadius:6,padding:"5px 8px",border:"1px solid var(--border)"}}>
               {ev.notes}
             </div>
           )}
         </div>
 
         {/* Action buttons */}
-        <div style={{display:"flex",gap:2,flexShrink:0,marginTop:2}}>
+        <div style={{display:"flex",flexDirection:"column",gap:2,flexShrink:0,justifyContent:"flex-start"}}>
           <button onClick={()=>onEdit(ev)} style={{background:"none",border:"none",cursor:"pointer",color:"var(--text3)",padding:"5px 7px",borderRadius:7,transition:"background 0.15s"}}
             onMouseEnter={e=>e.currentTarget.style.background="var(--surface2)"}
             onMouseLeave={e=>e.currentTarget.style.background="none"}>
@@ -1008,6 +1022,7 @@ function EventCard({ev,members,onToggle,onEdit,onDelete}){
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
           </button>
         </div>
+
       </div>
     </div>
     </>
