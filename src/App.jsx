@@ -943,10 +943,19 @@ export default function App(){
   );
 }
 
-function EventCard({ev,members,onToggle,onEdit,onDelete}){
+function EventCard({ev,members,onToggle,onDelete,onEdit}){
   const[confirmingDelete,setConfirmingDelete]=useState(false);
+  const[confirmingFuture,setConfirmingFuture]=useState(false);
   const color=getMemberColor(members,ev.attendees[0]);
   const multi=isMultiDay(ev);
+
+  const handleCheckbox=()=>{
+    if(!ev.completed&&ev.date>todayStr()){
+      setConfirmingFuture(true);
+    } else {
+      onToggle(ev.id);
+    }
+  };
 
   const[y,mo,d]=ev.date.split("-").map(Number);
   const dateObj=new Date(y,mo-1,d);
@@ -959,7 +968,21 @@ function EventCard({ev,members,onToggle,onEdit,onDelete}){
 
   return(
     <>
-    {confirmingDelete&&(
+    {confirmingFuture&&(
+      <div className="plannr-confirm-overlay">
+        <div className="plannr-confirm-box">
+          <div style={{fontSize:32,marginBottom:12}}>📅</div>
+          <h3 style={{margin:"0 0 8px",fontSize:17,color:"var(--text)",fontWeight:700}}>This event hasn't happened yet</h3>
+          <p style={{margin:"0 0 22px",fontSize:13,color:"var(--text2)",lineHeight:1.6}}>
+            <strong>{ev.title}</strong> is scheduled for {fmtDate(ev.date)}. Are you sure you want to mark it as complete?
+          </p>
+          <div style={{display:"flex",gap:10}}>
+            <button onClick={()=>setConfirmingFuture(false)} style={{flex:1,padding:"11px 0",borderRadius:10,border:"1.5px solid var(--border)",background:"transparent",color:"var(--text)",fontWeight:600,fontSize:14,cursor:"pointer",fontFamily:"'DM Sans',inherit"}}>Cancel</button>
+            <button onClick={()=>{setConfirmingFuture(false);onToggle(ev.id);}} style={{flex:1,padding:"11px 0",borderRadius:10,border:"none",background:"var(--accent)",color:"#fff",fontWeight:700,fontSize:14,cursor:"pointer",fontFamily:"'DM Sans',inherit"}}>Mark Complete</button>
+          </div>
+        </div>
+      </div>
+    )}
       <div className="plannr-confirm-overlay">
         <div className="plannr-confirm-box">
           <div style={{fontSize:28,marginBottom:12}}>🗑️</div>
@@ -998,7 +1021,7 @@ function EventCard({ev,members,onToggle,onEdit,onDelete}){
 
           {/* Checkbox */}
           <div style={{display:"flex",alignItems:"flex-start",paddingTop:3,flexShrink:0}}>
-            <Checkbox checked={ev.completed} onChange={()=>onToggle(ev.id)}/>
+            <Checkbox checked={ev.completed} onChange={handleCheckbox}/>
           </div>
 
           {/* Event details */}
