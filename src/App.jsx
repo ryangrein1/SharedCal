@@ -945,11 +945,14 @@ function EventCard({ev,members,onToggle,onEdit,onDelete}){
   const color=getMemberColor(members,ev.attendees[0]);
   const multi=isMultiDay(ev);
 
-  // Parse date parts for the date box
   const[y,mo,d]=ev.date.split("-").map(Number);
   const dateObj=new Date(y,mo-1,d);
   const weekday=dateObj.toLocaleDateString("en-US",{weekday:"short"});
   const monthDay=dateObj.toLocaleDateString("en-US",{month:"short",day:"numeric"});
+
+  const[y2,mo2,d2]=multi?ev.end_date.split("-").map(Number):[y,mo,d];
+  const endDateObj=multi?new Date(y2,mo2-1,d2):null;
+  const endMonthDay=endDateObj?endDateObj.toLocaleDateString("en-US",{month:"short",day:"numeric"}):"";
 
   return(
     <>
@@ -966,63 +969,65 @@ function EventCard({ev,members,onToggle,onEdit,onDelete}){
         </div>
       </div>
     )}
-    <div className="plannr-event-card" style={{opacity:ev.completed?0.55:1,borderLeft:`3px solid ${color}`}}>
-      <div style={{display:"flex",alignItems:"stretch",gap:10}}>
 
-        {/* Checkbox */}
-        <div style={{display:"flex",alignItems:"flex-start",paddingTop:3,flexShrink:0}}>
-          <Checkbox checked={ev.completed} onChange={()=>onToggle(ev.id)}/>
-        </div>
+    <div style={{display:"flex",alignItems:"stretch",gap:10,marginBottom:8}}>
 
-        {/* Date box */}
-        <div style={{
-          flexShrink:0,width:52,
-          background:color,
-          borderRadius:9,
-          display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
-          padding:"6px 4px",
-          gap:1,
-        }}>
-          <span style={{fontSize:10,fontWeight:700,color:"rgba(255,255,255,0.85)",textTransform:"uppercase",letterSpacing:"0.06em",lineHeight:1}}>
-            {multi?"Multi":weekday}
-          </span>
-          <span style={{fontSize:12,fontWeight:800,color:"#fff",lineHeight:1.2,textAlign:"center"}}>
-            {multi?`${getDateRange(ev.date,ev.end_date).length}d`:monthDay}
-          </span>
-          {ev.time&&!multi&&(
-            <span style={{fontSize:9,color:"rgba(255,255,255,0.75)",marginTop:2,lineHeight:1}}>{fmtTime(ev.time)}</span>
-          )}
-        </div>
+      {/* Date column — outside the card */}
+      <div style={{width:52,flexShrink:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",paddingTop:2}}>
+        {multi?(
+          <>
+            <span style={{fontSize:10,fontWeight:700,color:"var(--text3)",textTransform:"uppercase",letterSpacing:"0.05em",lineHeight:1.2,textAlign:"center"}}>{monthDay}</span>
+            <span style={{fontSize:10,fontWeight:500,color:"var(--text3)",lineHeight:1.4}}>—</span>
+            <span style={{fontSize:10,fontWeight:700,color:"var(--text3)",textTransform:"uppercase",letterSpacing:"0.05em",lineHeight:1.2,textAlign:"center"}}>{endMonthDay}</span>
+          </>
+        ):(
+          <>
+            <span style={{fontSize:11,fontWeight:700,color:"var(--text2)",textTransform:"uppercase",letterSpacing:"0.06em",lineHeight:1.2}}>{weekday}</span>
+            <span style={{fontSize:13,fontWeight:800,color:"var(--text)",lineHeight:1.3,textAlign:"center"}}>{monthDay}</span>
+            {ev.time&&<span style={{fontSize:9,color:"var(--text3)",marginTop:1,lineHeight:1,textAlign:"center"}}>{fmtTime(ev.time)}</span>}
+          </>
+        )}
+      </div>
 
-        {/* Event details — title, attendees, notes all left-aligned */}
-        <div style={{flex:1,minWidth:0,display:"flex",flexDirection:"column",gap:4,justifyContent:"center"}}>
-          <div style={{fontWeight:700,fontSize:15,textDecoration:ev.completed?"line-through":"none",color:ev.completed?"var(--text3)":"var(--text)",lineHeight:1.3}}>
-            {ev.title}
+      {/* Card */}
+      <div className="plannr-event-card" style={{flex:1,opacity:ev.completed?0.55:1,borderLeft:`3px solid ${color}`,marginBottom:0}}>
+        <div style={{display:"flex",alignItems:"stretch",gap:10}}>
+
+          {/* Checkbox */}
+          <div style={{display:"flex",alignItems:"flex-start",paddingTop:3,flexShrink:0}}>
+            <Checkbox checked={ev.completed} onChange={()=>onToggle(ev.id)}/>
           </div>
-          <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
-            {ev.attendees.map(aid=>{const m=members.find(x=>x.id===aid);return m?<span key={aid} className="plannr-tag" style={{background:getMemberColor(members,aid)}}>{m.name}</span>:null;})}
-          </div>
-          {ev.notes&&(
-            <div style={{fontSize:12,color:"var(--text2)",lineHeight:1.5,background:"var(--surface2)",borderRadius:6,padding:"5px 8px",border:"1px solid var(--border)"}}>
-              {ev.notes}
+
+          {/* Event details */}
+          <div style={{flex:1,minWidth:0,display:"flex",flexDirection:"column",gap:4,justifyContent:"center"}}>
+            <div style={{fontWeight:700,fontSize:15,textDecoration:ev.completed?"line-through":"none",color:ev.completed?"var(--text3)":"var(--text)",lineHeight:1.3}}>
+              {ev.title}
             </div>
-          )}
-        </div>
+            <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+              {ev.attendees.map(aid=>{const m=members.find(x=>x.id===aid);return m?<span key={aid} className="plannr-tag" style={{background:getMemberColor(members,aid)}}>{m.name}</span>:null;})}
+            </div>
+            {ev.notes&&(
+              <div style={{fontSize:12,color:"var(--text2)",lineHeight:1.5,background:"var(--surface2)",borderRadius:6,padding:"5px 8px",border:"1px solid var(--border)"}}>
+                {ev.notes}
+              </div>
+            )}
+          </div>
 
-        {/* Action buttons */}
-        <div style={{display:"flex",flexDirection:"column",gap:2,flexShrink:0,justifyContent:"flex-start"}}>
-          <button onClick={()=>onEdit(ev)} style={{background:"none",border:"none",cursor:"pointer",color:"var(--text3)",padding:"5px 7px",borderRadius:7,transition:"background 0.15s"}}
-            onMouseEnter={e=>e.currentTarget.style.background="var(--surface2)"}
-            onMouseLeave={e=>e.currentTarget.style.background="none"}>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-          </button>
-          <button onClick={()=>setConfirmingDelete(true)} style={{background:"none",border:"none",cursor:"pointer",color:"var(--danger)",padding:"5px 7px",borderRadius:7,opacity:0.7,transition:"opacity 0.15s,background 0.15s"}}
-            onMouseEnter={e=>{e.currentTarget.style.opacity="1";e.currentTarget.style.background="rgba(239,68,68,0.08)";}}
-            onMouseLeave={e=>{e.currentTarget.style.opacity="0.7";e.currentTarget.style.background="none";}}>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
-          </button>
-        </div>
+          {/* Action buttons */}
+          <div style={{display:"flex",flexDirection:"column",gap:2,flexShrink:0,justifyContent:"flex-start"}}>
+            <button onClick={()=>onEdit(ev)} style={{background:"none",border:"none",cursor:"pointer",color:"var(--text3)",padding:"5px 7px",borderRadius:7,transition:"background 0.15s"}}
+              onMouseEnter={e=>e.currentTarget.style.background="var(--surface2)"}
+              onMouseLeave={e=>e.currentTarget.style.background="none"}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+            <button onClick={()=>setConfirmingDelete(true)} style={{background:"none",border:"none",cursor:"pointer",color:"var(--danger)",padding:"5px 7px",borderRadius:7,opacity:0.7,transition:"opacity 0.15s,background 0.15s"}}
+              onMouseEnter={e=>{e.currentTarget.style.opacity="1";e.currentTarget.style.background="rgba(239,68,68,0.08)";}}
+              onMouseLeave={e=>{e.currentTarget.style.opacity="0.7";e.currentTarget.style.background="none";}}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+            </button>
+          </div>
 
+        </div>
       </div>
     </div>
     </>
