@@ -461,6 +461,7 @@ export default function App(){
   const[globalErr,setGlobalErr]=useState(null);
   const[showLogoutConfirm,setShowLogoutConfirm]=useState(false);
   const[calendarFilter,setCalendarFilter]=useState([]);
+  const[listFilter,setListFilter]=useState("month");
   const groupMenuRef=useRef(null);
 
   useEffect(()=>{
@@ -600,7 +601,14 @@ export default function App(){
 
   const sorted=[...events].sort((a,b)=>(a.date+(a.time||""))<(b.date+(b.time||""))?-1:1);
   const visible=sorted.filter(e=>showCompleted||!e.completed);
-  const upcoming=visible.filter(e=>e.date>=todayStr());
+  const next7=new Date();next7.setDate(next7.getDate()+7);const next7Str=next7.toISOString().slice(0,10);
+  const thisMonthStr=`${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,"0")}`;
+  const upcoming=visible.filter(e=>{
+    if(e.date<todayStr())return false;
+    if(listFilter==="7days")return e.date<=next7Str;
+    if(listFilter==="month")return e.date.startsWith(thisMonthStr)||(isMultiDay(e)&&e.end_date>=thisMonthStr+"-01"&&e.date<=thisMonthStr+"-31");
+    return true;
+  });
   const past=visible.filter(e=>e.date<todayStr());
   const monthStr=`${calMonth.y}-${String(calMonth.m+1).padStart(2,"0")}`;
   const monthEvents=sorted.filter(e=>{
@@ -767,14 +775,28 @@ export default function App(){
         {/* LIST VIEW */}
         {view==="list"&&(
           <div>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
               <div>
                 <span style={{fontWeight:700,fontSize:15,color:"var(--text)"}}>Upcoming</span>
                 <span style={{marginLeft:8,fontSize:13,color:"var(--text3)",fontFamily:"'DM Mono',monospace"}}>{upcoming.length}</span>
               </div>
               <Toggle checked={showCompleted} onChange={setShowCompleted} label="Show past"/>
             </div>
-            {upcoming.length===0&&<div className="plannr-empty">No upcoming events. Tap + Add Event!</div>}
+            {/* Time range filter */}
+            <div style={{display:"flex",gap:6,marginBottom:16,background:"var(--surface2)",borderRadius:10,padding:4,border:"1px solid var(--border)"}}>
+              {[{k:"7days",label:"Next 7 Days"},{k:"month",label:"This Month"},{k:"all",label:"All"}].map(({k,label})=>(
+                <button key={k} onClick={()=>setListFilter(k)} style={{
+                  flex:1,padding:"7px 0",borderRadius:8,border:"none",
+                  background:listFilter===k?"var(--surface)":"transparent",
+                  color:listFilter===k?"var(--text)":"var(--text3)",
+                  fontWeight:listFilter===k?700:400,cursor:"pointer",fontSize:12,
+                  fontFamily:"'DM Sans',inherit",
+                  boxShadow:listFilter===k?"0 1px 4px rgba(0,0,0,0.1)":"none",
+                  transition:"all 0.15s",
+                }}>{label}</button>
+              ))}
+            </div>
+            {upcoming.length===0&&<div className="plannr-empty">No events. Tap + Add Event!</div>}
             {upcoming.map(ev=><EventCard key={ev.id} ev={ev} members={groupMembers} onToggle={toggleComplete} onEdit={openEditEvent} onDelete={deleteEvent}/>)}
             {showCompleted&&past.length>0&&(
               <>
@@ -919,7 +941,6 @@ export default function App(){
 }
 
 function EventCard({ev,members,onToggle,onEdit,onDelete}){
-  const[expanded,setExpanded]=useState(false);
   const[confirmingDelete,setConfirmingDelete]=useState(false);
   const color=getMemberColor(members,ev.attendees[0]);
   const multi=isMultiDay(ev);
@@ -940,23 +961,42 @@ function EventCard({ev,members,onToggle,onEdit,onDelete}){
     )}
     <div className="plannr-event-card" style={{opacity:ev.completed?0.55:1,borderLeft:`3px solid ${color}`}}>
       <div style={{display:"flex",alignItems:"flex-start",gap:10}}>
-        <div style={{marginTop:2,flexShrink:0}}>
+
+        {/* Checkbox */}
+        <div style={{marginTop:3,flexShrink:0}}>
           <Checkbox checked={ev.completed} onChange={()=>onToggle(ev.id)}/>
         </div>
-        <div style={{flex:1,cursor:"pointer",minWidth:0}} onClick={()=>setExpanded(v=>!v)}>
-          <div style={{fontWeight:600,fontSize:14,textDecoration:ev.completed?"line-through":"none",color:ev.completed?"var(--text3)":"var(--text)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
-            {ev.title}
+
+        {/* Main content — all left-aligned after checkbox */}
+        <div style={{flex:1,minWidth:0}}>
+
+          {/* Date — prominent, on its own line */}
+          <div style={{fontSize:11,fontWeight:700,color:color,textTransform:"uppercase",letterSpacing:"0.07em",marginBottom:3}}>
+            {multi?`${fmtDate(ev.date)} → ${fmtDate(ev.end_date)}`:fmtDate(ev.date)}
+            {ev.time?<span style={{fontWeight:500,color:"var(--text3)",marginLeft:6,textTransform:"none",letterSpacing:0}}>{fmtTime(ev.time)}</span>:""}
             {multi&&<span className="multiday-badge">{getDateRange(ev.date,ev.end_date).length}d</span>}
           </div>
-          <div style={{fontSize:12,color:"var(--text2)",marginTop:3,fontWeight:400}}>
-            {multi?`${fmtDate(ev.date)} → ${fmtDate(ev.end_date)}`:fmtDate(ev.date)}
-            {ev.time?` · ${fmtTime(ev.time)}`:""}
+
+          {/* Event title */}
+          <div style={{fontWeight:700,fontSize:15,textDecoration:ev.completed?"line-through":"none",color:ev.completed?"var(--text3)":"var(--text)",marginBottom:5,lineHeight:1.3}}>
+            {ev.title}
           </div>
-          <div style={{display:"flex",gap:5,marginTop:7,flexWrap:"wrap"}}>
+
+          {/* Attendee tags */}
+          <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:ev.notes?6:0}}>
             {ev.attendees.map(aid=>{const m=members.find(x=>x.id===aid);return m?<span key={aid} className="plannr-tag" style={{background:getMemberColor(members,aid)}}>{m.name}</span>:null;})}
           </div>
+
+          {/* Notes — always visible if present */}
+          {ev.notes&&(
+            <div style={{fontSize:12,color:"var(--text2)",background:"var(--surface2)",borderRadius:7,padding:"6px 10px",marginTop:4,lineHeight:1.5,border:"1px solid var(--border)"}}>
+              {ev.notes}
+            </div>
+          )}
         </div>
-        <div style={{display:"flex",gap:2,flexShrink:0}}>
+
+        {/* Action buttons */}
+        <div style={{display:"flex",gap:2,flexShrink:0,marginTop:2}}>
           <button onClick={()=>onEdit(ev)} style={{background:"none",border:"none",cursor:"pointer",color:"var(--text3)",padding:"5px 7px",borderRadius:7,transition:"background 0.15s"}}
             onMouseEnter={e=>e.currentTarget.style.background="var(--surface2)"}
             onMouseLeave={e=>e.currentTarget.style.background="none"}>
@@ -969,7 +1009,6 @@ function EventCard({ev,members,onToggle,onEdit,onDelete}){
           </button>
         </div>
       </div>
-      {expanded&&ev.notes&&<div className="plannr-notes-box">{ev.notes}</div>}
     </div>
     </>
   );
